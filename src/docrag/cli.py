@@ -20,40 +20,408 @@ def cli():
 @cli.command()
 def init():
     """Initialize DocRAG in current project."""
-    click.echo("🚀 Initializing DocRAG Kit...")
-    click.echo("This command will be implemented in task 6.2")
+    from pathlib import Path
+    from .config_manager import ConfigManager
+    
+    # Check if .docrag/ already exists
+    docrag_dir = Path.cwd() / ".docrag"
+    if docrag_dir.exists():
+        click.echo("❌ Error: .docrag/ directory already exists")
+        click.echo("   DocRAG is already initialized in this project")
+        click.echo("   Use 'docrag config --edit' to modify configuration")
+        return
+    
+    try:
+        # Run interactive setup wizard
+        config_manager = ConfigManager()
+        config = config_manager.interactive_setup()
+        
+        # Create .docrag/ directory
+        docrag_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Save configuration to config.yaml
+        config_manager.save_config(config)
+        click.echo(f"\n✅ Configuration saved to {config_manager.config_path}")
+        
+        # Create .docrag/.gitignore
+        from .security import (
+            create_docrag_gitignore, 
+            display_gitignore_warning,
+            create_env_example,
+            display_security_reminder
+        )
+        
+        if create_docrag_gitignore(docrag_dir):
+            click.echo(f"✅ Created {docrag_dir / '.gitignore'}")
+        else:
+            click.echo(f"⚠️  Failed to create {docrag_dir / '.gitignore'}")
+        
+        # Create .env.example template
+        if create_env_example(Path.cwd()):
+            click.echo(f"✅ Created .env.example template")
+        else:
+            click.echo(f"⚠️  Failed to create .env.example")
+        
+        # Check root .gitignore and warn if .env is not excluded
+        display_gitignore_warning(Path.cwd(), offer_fix=True)
+        
+        # Display security reminder
+        display_security_reminder()
+        
+        # Display next steps
+        click.echo("\n📝 Next steps:")
+        click.echo("   1. Run: docrag index")
+        click.echo("   2. Run: docrag mcp-config")
+        click.echo("\n   Documentation: https://github.com/docrag-kit/docrag-kit")
+        
+    except KeyboardInterrupt:
+        click.echo("\n\n❌ Setup cancelled")
+        return
+    except Exception as e:
+        click.echo(f"\n❌ Error during initialization: {e}")
+        return
 
 
 @cli.command()
 def index():
     """Index project documents."""
-    click.echo("📚 Indexing documents...")
-    click.echo("This command will be implemented in task 6.3")
+    from pathlib import Path
+    from .config_manager import ConfigManager
+    from .document_processor import DocumentProcessor
+    from .vector_db import VectorDBManager
+    
+    project_root = Path.cwd()
+    
+    # Load configuration
+    config_manager = ConfigManager(project_root)
+    config = config_manager.load_config()
+    
+    if config is None:
+        click.echo("❌ Error: Configuration not found")
+        click.echo("   Run 'docrag init' to initialize DocRAG first")
+        return
+    
+    # Convert config to dictionary for processors
+    config_dict = config.to_dict()
+    
+    try:
+        # Check for API key
+        vector_db = VectorDBManager(config_dict, project_root)
+        
+        # Check if database already exists
+        db_path = project_root / ".docrag" / "vectordb"
+        if db_path.exists():
+            click.echo("⚠️  Vector database already exists")
+            if not click.confirm("   Overwrite existing database?", default=False):
+                click.echo("❌ Indexing cancelled")
+                return
+        
+        # Scan and load documents
+        click.echo("\n📁 Scanning documents...")
+        doc_processor = DocumentProcessor(config_dict)
+        chunks, stats = doc_processor.process(project_root)
+        
+        if stats['files_found'] == 0:
+            click.echo("❌ No files found to index")
+            click.echo("   Check your configuration:")
+            click.echo(f"   - Directories: {config.indexing.directories}")
+            click.echo(f"   - Extensions: {config.indexing.extensions}")
+            return
+        
+        # Display file count
+        click.echo(f"✅ Found {stats['files_found']} files to index")
+        
+        if stats['files_processed'] < stats['files_found']:
+            click.echo(f"⚠️  {stats['files_found'] - stats['files_processed']} files failed to load")
+        
+        # Create vector database
+        click.echo(f"\n📊 Creating vector database...")
+        click.echo(f"   Processing {stats['chunks_created']} chunks...")
+        
+        vector_db.create_database(chunks, show_progress=True)
+        
+        # Display statistics
+        click.echo("\n✅ Indexing complete!")
+        click.echo(f"   Files processed: {stats['files_processed']}")
+        click.echo(f"   Chunks created: {stats['chunks_created']}")
+        click.echo(f"   Total characters: {stats['total_characters']:,}")
+        
+        # Display next steps
+        click.echo("\n📝 Next steps:")
+        click.echo("   Run: docrag mcp-config")
+        
+    except ValueError as e:
+        click.echo(f"\n{e}")
+        return
+    except Exception as e:
+        click.echo(f"\n❌ Error during indexing: {e}")
+        import traceback
+        traceback.print_exc()
+        return
 
 
 @cli.command()
 def reindex():
     """Rebuild vector database from scratch."""
-    click.echo("🔄 Reindexing documents...")
-    click.echo("This command will be implemented in task 6.4")
+    from pathlib import Path
+    from .config_manager import ConfigManager
+    from .document_processor import DocumentProcessor
+    from .vector_db import VectorDBManager
+    
+    project_root = Path.cwd()
+    
+    # Load configuration
+    config_manager = ConfigManager(project_root)
+    config = config_manager.load_config()
+    
+    if config is None:
+        click.echo("❌ Error: Configuration not found")
+        click.echo("   Run 'docrag init' to initialize DocRAG first")
+        return
+    
+    # Convert config to dictionary for processors
+    config_dict = config.to_dict()
+    
+    # Display warning
+    click.echo("⚠️  WARNING: This will delete the existing vector database")
+    click.echo("   All indexed data will be removed and rebuilt from scratch")
+    
+    # Ask for confirmation
+    if not click.confirm("\n   Continue with reindexing?", default=False):
+        click.echo("❌ Reindexing cancelled")
+        return
+    
+    try:
+        # Initialize vector database manager
+        vector_db = VectorDBManager(config_dict, project_root)
+        
+        # Delete old database
+        click.echo("\n🗑️  Deleting old database...")
+        vector_db.delete_database()
+        click.echo("✅ Old database deleted")
+        
+        # Scan and load documents
+        click.echo("\n📁 Scanning documents...")
+        doc_processor = DocumentProcessor(config_dict)
+        chunks, stats = doc_processor.process(project_root)
+        
+        if stats['files_found'] == 0:
+            click.echo("❌ No files found to index")
+            click.echo("   Check your configuration:")
+            click.echo(f"   - Directories: {config.indexing.directories}")
+            click.echo(f"   - Extensions: {config.indexing.extensions}")
+            return
+        
+        # Display file count
+        click.echo(f"✅ Found {stats['files_found']} files to index")
+        
+        if stats['files_processed'] < stats['files_found']:
+            click.echo(f"⚠️  {stats['files_found'] - stats['files_processed']} files failed to load")
+        
+        # Create vector database
+        click.echo(f"\n📊 Creating vector database...")
+        click.echo(f"   Processing {stats['chunks_created']} chunks...")
+        
+        vector_db.create_database(chunks, show_progress=True)
+        
+        # Display updated statistics
+        click.echo("\n✅ Reindexing complete!")
+        click.echo(f"   Files processed: {stats['files_processed']}")
+        click.echo(f"   Chunks created: {stats['chunks_created']}")
+        click.echo(f"   Total characters: {stats['total_characters']:,}")
+        
+    except ValueError as e:
+        click.echo(f"\n{e}")
+        return
+    except Exception as e:
+        click.echo(f"\n❌ Error during reindexing: {e}")
+        import traceback
+        traceback.print_exc()
+        return
 
 
 @cli.command()
 @click.option("--edit", is_flag=True, help="Open configuration in editor")
 def config(edit):
     """Display or edit current configuration."""
+    from pathlib import Path
+    import subprocess
+    import os
+    import yaml
+    from .config_manager import ConfigManager
+    
+    project_root = Path.cwd()
+    config_manager = ConfigManager(project_root)
+    
+    # Check if configuration exists
+    if not config_manager.config_path.exists():
+        click.echo("❌ Error: Configuration not found")
+        click.echo("   Run 'docrag init' to initialize DocRAG first")
+        return
+    
     if edit:
+        # Open configuration in editor
         click.echo("✏️  Opening configuration in editor...")
+        
+        # Determine editor (use EDITOR env var or default to system editor)
+        editor = os.environ.get('EDITOR')
+        
+        if not editor:
+            # Try common editors
+            if os.system('which code > /dev/null 2>&1') == 0:
+                editor = 'code'
+            elif os.system('which nano > /dev/null 2>&1') == 0:
+                editor = 'nano'
+            elif os.system('which vim > /dev/null 2>&1') == 0:
+                editor = 'vim'
+            elif os.system('which vi > /dev/null 2>&1') == 0:
+                editor = 'vi'
+            else:
+                # Fallback to open (macOS) or xdg-open (Linux)
+                import platform
+                if platform.system() == 'Darwin':
+                    editor = 'open'
+                else:
+                    editor = 'xdg-open'
+        
+        try:
+            subprocess.run([editor, str(config_manager.config_path)])
+            click.echo("✅ Configuration file opened")
+        except Exception as e:
+            click.echo(f"❌ Error opening editor: {e}")
+            click.echo(f"   Try manually editing: {config_manager.config_path}")
+    
     else:
-        click.echo("⚙️  Current configuration:")
-    click.echo("This command will be implemented in task 6.5")
+        # Display current configuration
+        click.echo("⚙️  Current configuration:\n")
+        
+        try:
+            # Load and display YAML
+            with open(config_manager.config_path, 'r', encoding='utf-8') as f:
+                config_data = yaml.safe_load(f)
+            
+            # Pretty print the configuration
+            click.echo(yaml.dump(config_data, default_flow_style=False, sort_keys=False))
+            
+            click.echo(f"\n📁 Configuration file: {config_manager.config_path}")
+            click.echo("   Use 'docrag config --edit' to modify")
+        
+        except Exception as e:
+            click.echo(f"❌ Error reading configuration: {e}")
 
 
 @cli.command("mcp-config")
 def mcp_config():
     """Display MCP server configuration for Kiro."""
-    click.echo("🔌 MCP Server Configuration:")
-    click.echo("This command will be implemented in task 6.6")
+    from pathlib import Path
+    import json
+    import platform
+    from .config_manager import ConfigManager
+    
+    project_root = Path.cwd()
+    config_manager = ConfigManager(project_root)
+    
+    # Check if configuration exists
+    if not config_manager.config_path.exists():
+        click.echo("❌ Error: Configuration not found")
+        click.echo("   Run 'docrag init' to initialize DocRAG first")
+        return
+    
+    # Load configuration to get project name
+    config = config_manager.load_config()
+    if config is None:
+        click.echo("❌ Error: Failed to load configuration")
+        return
+    
+    project_name = config.project.name
+    
+    # Get absolute path to mcp_server.py
+    mcp_server_path = project_root / ".docrag" / "mcp_server.py"
+    
+    # Check if mcp_server.py exists
+    if not mcp_server_path.exists():
+        click.echo("⚠️  Warning: mcp_server.py not found")
+        click.echo(f"   Expected at: {mcp_server_path}")
+        click.echo("   This file should be created during 'docrag init'")
+        return
+    
+    # Generate MCP server configuration
+    server_name = f"docrag-{project_name}".lower().replace(" ", "-")
+    
+    mcp_config = {
+        "mcpServers": {
+            server_name: {
+                "command": "python3",
+                "args": [str(mcp_server_path)],
+                "env": {},
+                "disabled": False,
+                "autoApprove": []
+            }
+        }
+    }
+    
+    # Display configuration
+    click.echo("🔌 MCP Server Configuration for Kiro\n")
+    click.echo("Add this to your Kiro MCP configuration file:")
+    click.echo("~/.kiro/settings/mcp.json\n")
+    
+    click.echo("```json")
+    click.echo(json.dumps(mcp_config, indent=2))
+    click.echo("```\n")
+    
+    # Display manual instructions
+    click.echo("📝 Manual Setup Instructions:")
+    click.echo("1. Open or create: ~/.kiro/settings/mcp.json")
+    click.echo("2. Add the above configuration to the 'mcpServers' section")
+    click.echo("3. Restart Kiro or reload MCP servers")
+    click.echo("4. The server will appear as: " + server_name)
+    
+    # Detect Kiro installation on macOS
+    if platform.system() == 'Darwin':
+        kiro_config_path = Path.home() / ".kiro" / "settings" / "mcp.json"
+        
+        if kiro_config_path.parent.exists():
+            click.echo("\n🎯 Kiro installation detected!")
+            
+            if click.confirm("   Would you like to automatically add this configuration?", default=True):
+                try:
+                    # Read existing config or create new one
+                    if kiro_config_path.exists():
+                        # Backup existing config
+                        backup_path = kiro_config_path.with_suffix('.json.backup')
+                        import shutil
+                        shutil.copy2(kiro_config_path, backup_path)
+                        click.echo(f"   ✅ Backed up existing config to {backup_path}")
+                        
+                        # Load existing config
+                        with open(kiro_config_path, 'r', encoding='utf-8') as f:
+                            existing_config = json.load(f)
+                    else:
+                        existing_config = {"mcpServers": {}}
+                    
+                    # Ensure mcpServers exists
+                    if "mcpServers" not in existing_config:
+                        existing_config["mcpServers"] = {}
+                    
+                    # Add new server entry
+                    existing_config["mcpServers"][server_name] = mcp_config["mcpServers"][server_name]
+                    
+                    # Ensure directory exists
+                    kiro_config_path.parent.mkdir(parents=True, exist_ok=True)
+                    
+                    # Write updated config
+                    with open(kiro_config_path, 'w', encoding='utf-8') as f:
+                        json.dump(existing_config, f, indent=2)
+                    
+                    click.echo(f"   ✅ Configuration added to {kiro_config_path}")
+                    click.echo("   🔄 Restart Kiro or reload MCP servers to activate")
+                
+                except Exception as e:
+                    click.echo(f"   ❌ Error adding configuration: {e}")
+                    click.echo("   Please add the configuration manually")
+        else:
+            click.echo("\n💡 Tip: Install Kiro to use this MCP server")
+            click.echo("   Visit: https://kiro.ai")
 
 
 if __name__ == "__main__":

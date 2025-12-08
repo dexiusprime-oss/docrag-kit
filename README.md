@@ -193,20 +193,100 @@ Provide your own custom prompt template.
 
 ## Security
 
-⚠️ **IMPORTANT**: Never commit your `.env` file to git!
+⚠️ **CRITICAL WARNING**: Never commit your `.env` file to git!
 
-DocRAG Kit automatically:
-- Creates `.docrag/.gitignore` to exclude sensitive files
-- Checks if `.env` is in your root `.gitignore`
-- Creates `.env.example` template without real keys
-- Displays security warnings after initialization
+Your `.env` file contains sensitive API keys that provide access to paid services. If exposed, they can be used by others, potentially costing you money or compromising your accounts.
+
+### Automatic Security Features
+
+DocRAG Kit automatically protects your API keys by:
+- Creating `.docrag/.gitignore` to exclude sensitive files (`vectordb/`, `.env`, `*.pyc`)
+- Checking if `.env` is in your root `.gitignore`
+- Offering to add `.env` to `.gitignore` if missing
+- Creating `.env.example` template without real keys
+- Displaying security warnings after initialization
 
 ### Best Practices
 
-1. Always keep `.env` in `.gitignore`
-2. Use `.env.example` as a template for team members
-3. Never share API keys in public repositories
-4. Rotate API keys if accidentally exposed
+1. **Always keep `.env` in `.gitignore`**
+   - DocRAG Kit checks this during initialization
+   - Verify with: `grep .env .gitignore`
+
+2. **Use `.env.example` as a template**
+   - Share `.env.example` with your team (no real keys)
+   - Team members copy it to `.env` and add their own keys
+
+3. **Never share API keys**
+   - Don't paste them in public issues or forums
+   - Don't commit them to public repositories
+   - Don't share them in chat or email
+
+4. **Rotate keys if exposed**
+   - If you accidentally commit `.env`, revoke keys immediately
+   - Generate new keys from provider dashboard
+   - Update your `.env` file
+
+### What to Do If You Accidentally Commit API Keys
+
+If you accidentally commit your `.env` file or API keys to git:
+
+1. **Revoke the exposed keys immediately:**
+   - OpenAI: https://platform.openai.com/api-keys
+   - Google Gemini: https://makersuite.google.com/app/apikey
+
+2. **Generate new API keys** from the provider dashboard
+
+3. **Update your `.env` file** with the new keys
+
+4. **Remove keys from git history:**
+   ```bash
+   # Using git filter-branch (for small repos)
+   git filter-branch --force --index-filter \
+     "git rm --cached --ignore-unmatch .env" \
+     --prune-empty --tag-name-filter cat -- --all
+   
+   # Or use BFG Repo-Cleaner (recommended for large repos)
+   # https://rtyley.github.io/bfg-repo-cleaner/
+   bfg --delete-files .env
+   ```
+
+5. **Force push to remote** (if already pushed):
+   ```bash
+   git push origin --force --all
+   git push origin --force --tags
+   ```
+
+6. **Notify team members** to re-clone the repository
+
+### Pre-commit Hook (Recommended)
+
+Add a pre-commit hook to prevent accidentally committing `.env`:
+
+```bash
+# Create .git/hooks/pre-commit
+cat > .git/hooks/pre-commit << 'EOF'
+#!/bin/bash
+if git diff --cached --name-only | grep -q "^\.env$"; then
+    echo "ERROR: Attempting to commit .env file!"
+    echo "This file contains sensitive API keys."
+    echo "Add .env to .gitignore and try again."
+    exit 1
+fi
+EOF
+
+# Make it executable
+chmod +x .git/hooks/pre-commit
+```
+
+### Security Checklist
+
+Before pushing to git, verify:
+- [ ] `.env` is in `.gitignore`
+- [ ] `.env` is not staged for commit (`git status`)
+- [ ] `.env.example` exists (without real keys)
+- [ ] `.docrag/.gitignore` excludes `vectordb/` and `.env`
+- [ ] No API keys in configuration files
+- [ ] Pre-commit hook is installed (optional but recommended)
 
 ## MCP Integration
 
@@ -230,39 +310,64 @@ List all indexed documents in the project.
 
 **Returns:** List of all source files in the vector database.
 
-## Examples
+## Documentation
+
+### Quick Links
+
+- **[SECURITY.md](SECURITY.md)** - Complete security guide (read this first!)
+- **[EXAMPLES.md](EXAMPLES.md)** - Detailed usage examples for different project types
+- **[MCP_INTEGRATION.md](MCP_INTEGRATION.md)** - Complete guide for Kiro AI integration
+- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Solutions for common issues
+- **[API_REFERENCE.md](API_REFERENCE.md)** - Complete CLI and configuration reference
+
+### Examples
 
 See [EXAMPLES.md](EXAMPLES.md) for detailed usage examples including:
 - Symfony project setup
 - iOS project setup
 - General documentation project
 - Example questions and answers
+- Configuration examples
 
-## Troubleshooting
+### MCP Integration
 
-### Database Not Found
+See [MCP_INTEGRATION.md](MCP_INTEGRATION.md) for complete integration guide:
+- Getting MCP configuration
+- Manual and automatic setup
+- Testing MCP server
+- Troubleshooting connection issues
+
+### Troubleshooting
+
+See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for detailed solutions to:
+- Installation issues
+- API key problems
+- Indexing errors
+- MCP connection issues
+- Performance optimization
+
+Quick fixes:
+
+**Database Not Found**
 ```bash
 docrag index
 ```
 
-### API Key Errors
-Check that your `.env` file contains the correct API key:
-```
-OPENAI_API_KEY=sk-...
-# or
-GOOGLE_API_KEY=...
+**API Key Errors**
+```bash
+# Check .env file
+cat .env
+# Should show: OPENAI_API_KEY=sk-... or GOOGLE_API_KEY=...
 ```
 
-### Inaccurate Answers
-- Increase `top_k` in configuration
-- Adjust `chunk_size` for better context
-- Update documentation to be more specific
-- Reindex after documentation changes
+**MCP Connection Issues**
+```bash
+# Verify MCP server exists
+ls .docrag/mcp_server.py
 
-### MCP Connection Issues
-- Verify MCP configuration in Kiro
-- Check that `.docrag/mcp_server.py` exists
-- Ensure vector database is created (`docrag index`)
+# Test manually
+python .docrag/mcp_server.py
+```
 
 ## Development
 
@@ -314,8 +419,17 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Support
 
-- Documentation: [GitHub README](https://github.com/yourusername/docrag-kit#readme)
+### Documentation
+- [README.md](README.md) - Main documentation
+- [SECURITY.md](SECURITY.md) - Security best practices
+- [EXAMPLES.md](EXAMPLES.md) - Usage examples
+- [MCP_INTEGRATION.md](MCP_INTEGRATION.md) - MCP setup guide
+- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Troubleshooting guide
+- [API_REFERENCE.md](API_REFERENCE.md) - Complete API reference
+
+### Community
 - Issues: [GitHub Issues](https://github.com/yourusername/docrag-kit/issues)
+- Discussions: [GitHub Discussions](https://github.com/yourusername/docrag-kit/discussions)
 
 ## Changelog
 
