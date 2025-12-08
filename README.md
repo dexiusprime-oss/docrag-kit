@@ -1,0 +1,327 @@
+# DocRAG Kit
+
+Universal RAG (Retrieval-Augmented Generation) system for project documentation. Quickly add AI-powered semantic search to any project.
+
+## Features
+
+- 🚀 **Quick Setup** - Initialize RAG system in any project with one command
+- 📚 **Universal** - Works with any documentation (Markdown, code, configs)
+- 🔌 **MCP Integration** - Seamless integration with Kiro AI via Model Context Protocol
+- 🌍 **Multilingual** - Supports Russian and English questions and answers
+- 🎯 **Project Templates** - Predefined templates for Symfony, iOS, and general projects
+- 🔒 **Secure** - API keys stored safely in .env files
+
+## Installation
+
+### From PyPI (when published)
+
+```bash
+pip install docrag-kit
+```
+
+### From Source
+
+```bash
+git clone https://github.com/yourusername/docrag-kit.git
+cd docrag-kit
+pip install -e .
+```
+
+## Quick Start
+
+### 1. Initialize RAG System
+
+Navigate to your project directory and run:
+
+```bash
+docrag init
+```
+
+This will:
+- Start an interactive configuration wizard
+- Ask for your LLM provider (OpenAI or Gemini)
+- Request your API key
+- Configure directories and file types to index
+- Create `.docrag/` directory with configuration
+
+### 2. Index Your Documentation
+
+```bash
+docrag index
+```
+
+This will:
+- Scan configured directories for documentation
+- Split documents into chunks
+- Create embeddings using your chosen LLM provider
+- Store vectors in local ChromaDB database
+
+### 3. Connect to Kiro AI
+
+```bash
+docrag mcp-config
+```
+
+This will display the MCP server configuration to add to Kiro.
+
+### 4. Start Searching
+
+Once configured in Kiro, you can ask questions about your project:
+- "What is the architecture of this project?"
+- "How do I configure the database?"
+- "What APIs are available?"
+
+## Configuration
+
+After initialization, your project will have:
+
+```
+your-project/
+├── .docrag/
+│   ├── config.yaml      # Configuration file
+│   ├── mcp_server.py    # MCP server for Kiro
+│   ├── vectordb/        # Vector database (gitignored)
+│   └── .gitignore       # Excludes vectordb and .env
+└── .env                 # API keys (gitignored)
+```
+
+### Configuration File
+
+`.docrag/config.yaml` contains all settings:
+
+```yaml
+project:
+  name: "my-project"
+  type: "symfony"  # symfony, ios, general, custom
+
+llm:
+  provider: "openai"  # openai, gemini
+  embedding_model: "text-embedding-3-small"
+  llm_model: "gpt-4o-mini"
+  temperature: 0.3
+
+indexing:
+  directories:
+    - "docs/"
+    - "src/"
+  extensions:
+    - ".md"
+    - ".txt"
+    - ".py"
+  exclude_patterns:
+    - "node_modules/"
+    - ".git/"
+
+chunking:
+  chunk_size: 1000
+  chunk_overlap: 200
+
+retrieval:
+  top_k: 5
+```
+
+## Commands
+
+### `docrag init`
+Initialize DocRAG in current project with interactive wizard.
+
+### `docrag index`
+Index project documents and create vector database.
+
+### `docrag reindex`
+Rebuild vector database from scratch (useful after documentation changes).
+
+### `docrag config`
+Display current configuration.
+
+### `docrag config --edit`
+Open configuration file in default editor.
+
+### `docrag mcp-config`
+Display MCP server configuration for Kiro integration.
+
+### `docrag --version`
+Display version information.
+
+### `docrag --help`
+Display help information.
+
+## Supported File Types
+
+- **Markdown**: `.md`
+- **Text**: `.txt`
+- **Python**: `.py`
+- **PHP**: `.php`
+- **Swift**: `.swift`
+- **JSON**: `.json`
+- **YAML**: `.yaml`, `.yml`
+- **Config**: `.conf`, `.config`, `.ini`
+
+## LLM Providers
+
+### OpenAI
+- **Embeddings**: `text-embedding-3-small`
+- **LLM**: `gpt-4o-mini`
+- Get API key: https://platform.openai.com/api-keys
+
+### Google Gemini
+- **Embeddings**: `models/embedding-001`
+- **LLM**: `gemini-1.5-flash`
+- Get API key: https://makersuite.google.com/app/apikey
+
+## Project Templates
+
+### Symfony
+Optimized for Symfony PHP framework projects with expert knowledge of:
+- Symfony components and bundles
+- Doctrine ORM
+- Twig templates
+- PHP best practices
+
+### iOS
+Optimized for iOS development projects with expert knowledge of:
+- Swift programming language
+- UIKit and SwiftUI
+- iOS SDK and frameworks
+- Xcode and development tools
+
+### General Documentation
+General-purpose template for any project type.
+
+### Custom
+Provide your own custom prompt template.
+
+## Security
+
+⚠️ **IMPORTANT**: Never commit your `.env` file to git!
+
+DocRAG Kit automatically:
+- Creates `.docrag/.gitignore` to exclude sensitive files
+- Checks if `.env` is in your root `.gitignore`
+- Creates `.env.example` template without real keys
+- Displays security warnings after initialization
+
+### Best Practices
+
+1. Always keep `.env` in `.gitignore`
+2. Use `.env.example` as a template for team members
+3. Never share API keys in public repositories
+4. Rotate API keys if accidentally exposed
+
+## MCP Integration
+
+DocRAG Kit provides two MCP tools for Kiro AI:
+
+### `search_docs`
+Search project documentation using semantic search.
+
+**Parameters:**
+- `question` (string, required): Question to search for
+- `include_sources` (boolean, optional): Include source files in response
+
+**Example:**
+```
+Question: "How do I configure the database?"
+Response: "To configure the database, edit the .env file..."
+```
+
+### `list_indexed_docs`
+List all indexed documents in the project.
+
+**Returns:** List of all source files in the vector database.
+
+## Examples
+
+See [EXAMPLES.md](EXAMPLES.md) for detailed usage examples including:
+- Symfony project setup
+- iOS project setup
+- General documentation project
+- Example questions and answers
+
+## Troubleshooting
+
+### Database Not Found
+```bash
+docrag index
+```
+
+### API Key Errors
+Check that your `.env` file contains the correct API key:
+```
+OPENAI_API_KEY=sk-...
+# or
+GOOGLE_API_KEY=...
+```
+
+### Inaccurate Answers
+- Increase `top_k` in configuration
+- Adjust `chunk_size` for better context
+- Update documentation to be more specific
+- Reindex after documentation changes
+
+### MCP Connection Issues
+- Verify MCP configuration in Kiro
+- Check that `.docrag/mcp_server.py` exists
+- Ensure vector database is created (`docrag index`)
+
+## Development
+
+### Setup Development Environment
+
+```bash
+git clone https://github.com/yourusername/docrag-kit.git
+cd docrag-kit
+pip install -e ".[dev]"
+```
+
+### Run Tests
+
+```bash
+pytest
+```
+
+### Run Property-Based Tests
+
+```bash
+pytest tests/property/
+```
+
+### Code Formatting
+
+```bash
+black src/ tests/
+```
+
+### Type Checking
+
+```bash
+mypy src/
+```
+
+## Requirements
+
+- Python >= 3.8
+- OpenAI API key or Google Gemini API key
+- 100MB+ disk space for vector database
+
+## License
+
+MIT License - see [LICENSE](LICENSE) file for details.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## Support
+
+- Documentation: [GitHub README](https://github.com/yourusername/docrag-kit#readme)
+- Issues: [GitHub Issues](https://github.com/yourusername/docrag-kit/issues)
+
+## Changelog
+
+### 0.1.0 (Initial Release)
+- Initial release with core functionality
+- Support for OpenAI and Gemini providers
+- MCP integration for Kiro AI
+- Interactive setup wizard
+- Project templates (Symfony, iOS, General)
