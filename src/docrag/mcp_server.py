@@ -27,7 +27,7 @@ from dotenv import load_dotenv
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
-from mcp.types import Tool, TextContent
+from mcp import types
 
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
@@ -85,10 +85,10 @@ class MCPServer:
         """Register MCP tools."""
         
         @self.server.list_tools()
-        async def list_tools() -> list[Tool]:
+        async def list_tools() -> list[types.Tool]:
             """List available tools."""
             return [
-                Tool(
+                types.Tool(
                     name="search_docs",
                     description="Search project documentation using semantic search. "
                                 "Поиск в документации проекта с использованием семантического поиска.",
@@ -110,7 +110,7 @@ class MCPServer:
                         "required": ["question"]
                     }
                 ),
-                Tool(
+                types.Tool(
                     name="list_indexed_docs",
                     description="List all indexed documents in the project. "
                                 "Список всех проиндексированных документов в проекте.",
@@ -123,7 +123,7 @@ class MCPServer:
             ]
         
         @self.server.call_tool()
-        async def call_tool(name: str, arguments: Dict[str, Any]) -> list[TextContent]:
+        async def call_tool(name: str, arguments: Dict[str, Any]) -> list[types.TextContent]:
             """Handle tool calls."""
             try:
                 if name == "search_docs":
@@ -131,19 +131,19 @@ class MCPServer:
                         question=arguments.get("question", ""),
                         include_sources=arguments.get("include_sources", False)
                     )
-                    return [TextContent(type="text", text=result)]
+                    return [types.TextContent(type="text", text=result)]
                 
                 elif name == "list_indexed_docs":
                     result = await self.handle_list_docs()
-                    return [TextContent(type="text", text=result)]
+                    return [types.TextContent(type="text", text=result)]
                 
                 else:
                     error_msg = f"❌ Unknown tool: {name}"
-                    return [TextContent(type="text", text=error_msg)]
+                    return [types.TextContent(type="text", text=error_msg)]
             
             except Exception as e:
                 error_msg = self._format_error(e)
-                return [TextContent(type="text", text=error_msg)]
+                return [types.TextContent(type="text", text=error_msg)]
 
     def get_qa_chain(self):
         """
