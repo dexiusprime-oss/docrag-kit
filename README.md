@@ -173,6 +173,11 @@ Diagnose installation and configuration issues. Checks:
 - Required packages
 - MCP configuration
 
+### `docrag fix-prompt`
+Fix prompt template to include required placeholders (`{context}` and `{question}`).
+
+Use this command if `answer_question` tool returns only sources without AI-generated answer.
+
 ### `docrag --version`
 Display version information.
 
@@ -501,6 +506,12 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 - Discussions: [GitHub Discussions](https://github.com/yourusername/docrag-kit/discussions)
 
 ## Changelog
+
+### 0.1.5 (2024-12-09)
+- **FIX**: Added `docrag fix-prompt` command to fix prompt templates missing required placeholders
+- **FIX**: Added validation for prompt template placeholders (`{context}` and `{question}`)
+- **IMPROVEMENT**: Better error messages when prompt template is invalid
+- This fixes the issue where `answer_question` tool returns only sources without AI-generated answer
 
 ### 0.1.4 (2024-12-09)
 - **NEW**: Added `answer_question` MCP tool for AI-generated comprehensive answers

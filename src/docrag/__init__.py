@@ -1,6 +1,6 @@
 """DocRAG Kit - Universal RAG system for project documentation."""
 
-__version__ = "0.1.4"
+__version__ = "0.1.5"
 __author__ = "DocRAG Kit Contributors"
 __license__ = "MIT"
 

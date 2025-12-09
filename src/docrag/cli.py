@@ -142,6 +142,84 @@ def init(non_interactive, template):
 
 
 @cli.command()
+def fix_prompt():
+    """Fix prompt template to include required placeholders."""
+    from pathlib import Path
+    from .config_manager import ConfigManager
+    import yaml
+    
+    config_manager = ConfigManager()
+    
+    # Check if configuration exists
+    if not config_manager.config_path.exists():
+        click.echo("❌ Error: DocRAG not initialized in this project")
+        click.echo("   Run 'docrag init' first")
+        return
+    
+    try:
+        # Load configuration
+        config = config_manager.load_config()
+        if not config:
+            click.echo("❌ Error: Failed to load configuration")
+            return
+        
+        # Check if template has required placeholders
+        template = config.prompt.template
+        if '{context}' in template and '{question}' in template:
+            click.echo("✅ Prompt template already has required placeholders")
+            return
+        
+        click.echo("🔧 Fixing prompt template...")
+        click.echo(f"\n📋 Current template (first 200 chars):")
+        click.echo(f"{'=' * 80}")
+        click.echo(template[:200] + "..." if len(template) > 200 else template)
+        click.echo(f"{'=' * 80}\n")
+        
+        # Get project type and name
+        project_type = config.project.type
+        project_name = config.project.name
+        
+        # Create fixed template based on project type
+        if project_type == 'symfony':
+            base_instruction = f"You are an expert assistant for the {project_name} project - a Symfony-based application."
+        elif project_type == 'ios':
+            base_instruction = f"You are an iOS development expert for the {project_name} project."
+        else:
+            base_instruction = f"You are a developer assistant for the {project_name} project."
+        
+        fixed_template = f"""{base_instruction}
+Answer questions based on the provided documentation context.
+Be concise and accurate. Respond in Russian if the question is in Russian.
+If you don't know the answer based on the context, say so.
+
+Context:
+{{context}}
+
+Question: {{question}}
+
+Answer:"""
+        
+        # Update configuration
+        config.prompt.template = fixed_template
+        config_manager.save_config(config)
+        
+        click.echo(f"✅ Fixed prompt template")
+        click.echo(f"\n📝 New template:")
+        click.echo(f"{'=' * 80}")
+        click.echo(fixed_template)
+        click.echo(f"{'=' * 80}\n")
+        click.echo(f"✅ Configuration saved to {config_manager.config_path}")
+        click.echo("\n📝 Next steps:")
+        click.echo("   1. Restart Kiro IDE to reload MCP server")
+        click.echo("   2. Try asking a question with answer_question tool")
+        
+    except Exception as e:
+        click.echo(f"❌ Error fixing prompt template: {e}")
+        import traceback
+        traceback.print_exc()
+
+
+@cli.command()
 @click.option("--force", is_flag=True, help="Overwrite existing database without confirmation")
 def index(force):
     """Index project documents."""

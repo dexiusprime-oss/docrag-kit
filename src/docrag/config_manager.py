@@ -251,6 +251,13 @@ class ConfigManager:
         if not config.prompt.template:
             errors.append("prompt.template is required")
         
+        # Validate prompt template has required placeholders
+        if config.prompt.template:
+            if '{context}' not in config.prompt.template:
+                errors.append("prompt.template must contain {context} placeholder")
+            if '{question}' not in config.prompt.template:
+                errors.append("prompt.template must contain {question} placeholder")
+        
         return errors
 
     def _detect_project_structure(self) -> Dict[str, Any]:
