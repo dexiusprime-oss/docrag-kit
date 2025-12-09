@@ -22,7 +22,7 @@ Universal RAG (Retrieval-Augmented Generation) system for project documentation.
 - Python >= 3.10 (3.11 recommended)
 - pip >= 21.0
 
-### From PyPI (when published)
+### From PyPI
 
 ```bash
 pip install docrag-kit
@@ -323,19 +323,48 @@ Before pushing to git, verify:
 
 ## MCP Integration
 
-DocRAG Kit provides two MCP tools for Kiro AI:
+DocRAG Kit provides three MCP tools for Kiro AI:
 
-### `search_docs`
-Search project documentation using semantic search.
+### `search_docs` - Fast Fragment Search
+Returns relevant document fragments with source files. Best for quick lookups.
 
 **Parameters:**
-- `question` (string, required): Question to search for
-- `include_sources` (boolean, optional): Include source files in response
+- `question` (string, required): Search query or topic
+- `max_results` (integer, optional): Number of results (1-10, default: 3)
+
+**Performance:** ~1 second, no LLM tokens used
+
+**Example:**
+```
+Question: "database configuration"
+Response: 
+🔍 Found 2 relevant document(s):
+
+--- Result 1 ---
+📄 Source: docs/config.md
+Database settings in .env:
+DB_HOST=localhost
+DB_PORT=5432
+...
+```
+
+### `answer_question` - AI-Generated Answer
+Returns comprehensive AI-generated answer synthesized from documentation. Best for complex questions.
+
+**Parameters:**
+- `question` (string, required): Question to answer
+- `include_sources` (boolean, optional): Include source files (default: true)
+
+**Performance:** ~3-5 seconds, uses LLM tokens
 
 **Example:**
 ```
 Question: "How do I configure the database?"
-Response: "To configure the database, edit the .env file..."
+Response: "To configure the database, edit the .env file and set DB_HOST, DB_PORT, and DB_NAME..."
+
+📚 Sources:
+  • docs/config.md
+  • README.md
 ```
 
 ### `list_indexed_docs`
@@ -343,10 +372,16 @@ List all indexed documents in the project.
 
 **Returns:** List of all source files in the vector database.
 
+**Tool Selection Guide:**
+- Use `search_docs` for quick lookups (faster, free)
+- Use `answer_question` for complex questions (slower, uses tokens)
+- See [docs/AGENT_QUICK_START.md](docs/AGENT_QUICK_START.md) for detailed guide
+
 ## Documentation
 
 ### Quick Links
 
+- **[docs/AGENT_QUICK_START.md](docs/AGENT_QUICK_START.md)** - Quick start guide for AI agents
 - **[docs/SECURITY.md](docs/SECURITY.md)** - Complete security guide (read this first!)
 - **[docs/EXAMPLES.md](docs/EXAMPLES.md)** - Detailed usage examples for different project types
 - **[docs/MCP_INTEGRATION.md](docs/MCP_INTEGRATION.md)** - Complete guide for Kiro AI integration
@@ -467,9 +502,16 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Changelog
 
-### 0.1.0 (Initial Release)
+### 0.1.1 (2024-12-09)
+- Fixed GitHub Actions permissions for automated releases
+- Updated artifact actions to v4
+- Improved CI/CD pipeline
+
+### 0.1.0 (2024-12-09)
 - Initial release with core functionality
 - Support for OpenAI and Gemini providers
 - MCP integration for Kiro AI
 - Interactive setup wizard
 - Project templates (Symfony, iOS, General)
+- Doctor command for diagnostics
+- Automatic project structure detection
