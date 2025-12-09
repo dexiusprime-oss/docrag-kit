@@ -163,6 +163,16 @@ Open configuration file in default editor.
 ### `docrag mcp-config`
 Display MCP server configuration for Kiro integration.
 
+### `docrag doctor`
+Diagnose installation and configuration issues. Checks:
+- DocRAG initialization
+- Configuration files
+- API keys
+- Vector database
+- Python environment
+- Required packages
+- MCP configuration
+
 ### `docrag --version`
 Display version information.
 

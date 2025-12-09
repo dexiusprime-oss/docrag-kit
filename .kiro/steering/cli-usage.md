@@ -16,14 +16,14 @@ docrag init --non-interactive --template general
 
 ### `docrag index`
 ```bash
-# Use --force to skip confirmation prompts
-docrag index --force
+# No interaction needed - automatically overwrites existing database
+docrag index
 ```
 
 ### `docrag reindex`
 ```bash
-# Use --force to skip confirmation prompts
-docrag reindex --force
+# No interaction needed - automatically rebuilds database
+docrag reindex
 ```
 
 ### `docrag config`
@@ -48,6 +48,7 @@ docrag mcp-config
 ## Summary
 
 - **Always add `--non-interactive` to `docrag init`**
-- **Always add `--force` to `docrag index` and `docrag reindex`**
+- **`docrag index` - no flags needed, automatically overwrites**
+- **`docrag reindex` - no flags needed, automatically rebuilds**
 - **Never use `docrag config --edit` in automated contexts**
 - **Use `docrag config` (without --edit) to view configuration**
