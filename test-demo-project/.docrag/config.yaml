@@ -1,34 +1,46 @@
 project:
-  name: Test Demo Project
-  type: general
+  name: E-Commerce Platform
+  type: symfony
 llm:
   provider: openai
-  llm_model: gpt-4o-mini
   embedding_model: text-embedding-3-small
+  llm_model: gpt-4o-mini
   temperature: 0.3
 indexing:
   directories:
-  - ./
+  - .
   extensions:
   - .md
   - .txt
   exclude_patterns:
-  - .git/*
-  - .docrag/*
-  - '*.pyc'
-  - __pycache__/*
-  - .env
+  - node_modules/
+  - .git/
+  - __pycache__/
 chunking:
   chunk_size: 1000
   chunk_overlap: 200
 retrieval:
   top_k: 5
 prompt:
-  template: 'You are a helpful assistant that answers questions about the Test Demo
-    Project based on the provided documentation.
+  template: 'You are an expert in Symfony PHP framework and related technologies.
+
+    Use the following context from the project documentation to answer the question.
 
 
-    Context from documentation:
+    Rules:
+
+    - Answer precisely based on the provided context
+
+    - If information is not in the context, say so honestly
+
+    - Provide code examples when relevant
+
+    - Support both Russian and English in questions and answers
+
+    - Keep technical terms and code in original language
+
+
+    Context:
 
     {context}
 
@@ -36,5 +48,4 @@ prompt:
     Question: {question}
 
 
-    Please provide a clear and accurate answer based on the documentation above. If
-    the answer is not in the documentation, say so.'
+    Answer:'
