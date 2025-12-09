@@ -70,3 +70,16 @@ class PromptTemplateManager:
                 raise ValueError(f"Template must contain {placeholder} placeholder")
         
         return template
+
+
+def get_template_for_project_type(project_type: str) -> str:
+    """
+    Get prompt template for project type (convenience function).
+    
+    Args:
+        project_type: Type of project (symfony, ios, general, custom).
+    
+    Returns:
+        Prompt template string.
+    """
+    return PromptTemplateManager.get_template(project_type.lower())

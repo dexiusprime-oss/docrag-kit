@@ -34,8 +34,8 @@ class IndexingConfig:
 @dataclass
 class ChunkingConfig:
     """Document chunking configuration."""
-    chunk_size: int = 1000
-    chunk_overlap: int = 200
+    chunk_size: int = 800  # Optimized for faster processing
+    chunk_overlap: int = 150  # Optimized overlap
 
 
 @dataclass
