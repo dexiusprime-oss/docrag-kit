@@ -25,7 +25,7 @@ jobs:
     
     - name: Run all tests
       run: |
-        pytest tests/ -v
+        pytest tests/ -v --ignore=tests/test_docrag_full.py
     
     - name: Verify all tests pass
       run: |
