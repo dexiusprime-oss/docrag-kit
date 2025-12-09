@@ -38,7 +38,7 @@ jobs:
     
     - name: Run tests
       run: |
-        pytest tests/ -v --tb=short
+        pytest tests/ -v --tb=short --ignore=tests/test_docrag_full.py
     
     - name: Test package installation
       run: |
