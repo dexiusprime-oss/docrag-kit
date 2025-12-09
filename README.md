@@ -17,6 +17,11 @@ Universal RAG (Retrieval-Augmented Generation) system for project documentation.
 
 ## Installation
 
+### Requirements
+
+- Python >= 3.10 (3.11 recommended)
+- pip >= 21.0
+
 ### From PyPI (when published)
 
 ```bash
@@ -26,10 +31,24 @@ pip install docrag-kit
 ### From Source
 
 ```bash
-git clone https://github.com/yourusername/docrag-kit.git
+git clone https://github.com/dexiusprime-oss/docrag-kit.git
 cd docrag-kit
 pip install -e .
 ```
+
+### Troubleshooting Installation
+
+If you encounter dependency conflicts with `onnxruntime` or `pulsar-client`:
+
+```bash
+# Use Python 3.11
+python3.11 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install docrag-kit
+```
+
+For more solutions, see [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md#dependency-conflict-with-onnxruntime-or-pulsar-client)
 
 ## Quick Start
 

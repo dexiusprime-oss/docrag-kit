@@ -7,7 +7,7 @@ name = "docrag-kit"
 version = "0.1.0"
 description = "Universal RAG system for project documentation"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.13"
 license = {text = "MIT"}
 authors = [
     {name = "DocRAG Kit Contributors"}
@@ -32,7 +32,7 @@ dependencies = [
     "langchain-openai>=0.0.5",
     "langchain-google-genai>=0.0.5",
     "langchain-chroma>=0.1.0",
-    "chromadb>=0.4.0",
+    "chromadb>=0.4.22",
     "pyyaml>=6.0",
     "python-dotenv>=1.0.0",
     "chardet>=5.0.0",

@@ -13,6 +13,62 @@ This guide helps you diagnose and fix common issues with DocRAG Kit.
 
 ## Installation Issues
 
+### Dependency Conflict with onnxruntime or pulsar-client
+
+**Problem**: Installation fails with dependency resolution errors
+
+**Symptoms**:
+```
+ERROR: ResolutionImpossible: for help visit https://pip.pypa.io/en/latest/topics/dependency-resolution/#dealing-with-dependency-conflicts
+Additionally, some packages in these conflicts have no matching distributions available for your environment:
+onnxruntime
+pulsar-client
+```
+
+**Root Cause**: ChromaDB requires `onnxruntime` and `pulsar-client` which may not be available for all platforms (especially ARM-based systems like Apple Silicon M1/M2).
+
+**Solutions**:
+
+1. **Use Python 3.10 or 3.11** (recommended):
+   ```bash
+   python3.11 -m venv venv
+   source venv/bin/activate
+   pip install --upgrade pip
+   pip install docrag-kit
+   ```
+
+2. **Install with --no-deps and manually install core dependencies**:
+   ```bash
+   pip install --no-deps docrag-kit
+   pip install click pyyaml python-dotenv chardet tiktoken mcp
+   pip install langchain langchain-openai langchain-google-genai
+   pip install chromadb --no-deps
+   pip install chromadb-client  # Lighter alternative
+   ```
+
+3. **Use conda (for problematic platforms)**:
+   ```bash
+   conda create -n docrag python=3.11
+   conda activate docrag
+   conda install -c conda-forge onnxruntime
+   pip install docrag-kit
+   ```
+
+4. **Install from source with specific ChromaDB version**:
+   ```bash
+   git clone https://github.com/dexiusprime-oss/docrag-kit.git
+   cd docrag-kit
+   pip install chromadb==0.4.22
+   pip install -e .
+   ```
+
+5. **For Apple Silicon (M1/M2/M3)**:
+   ```bash
+   # Use Rosetta or native ARM build
+   arch -arm64 pip install docrag-kit
+   # Or use miniforge/mambaforge
+   ```
+
 ### pip install fails
 
 **Problem**: `pip install docrag-kit` fails with errors
@@ -32,12 +88,12 @@ ERROR: Could not find a version that satisfies the requirement docrag-kit
 2. **Check Python version**:
    ```bash
    python --version
-   # Should be 3.8 or higher
+   # Should be 3.10 or higher
    ```
 
 3. **Install from source**:
    ```bash
-   git clone https://github.com/yourusername/docrag-kit.git
+   git clone https://github.com/dexiusprime-oss/docrag-kit.git
    cd docrag-kit
    pip install -e .
    ```
