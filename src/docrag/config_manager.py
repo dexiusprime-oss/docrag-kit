@@ -195,6 +195,67 @@ class ConfigManager:
         
         return errors
 
+    def _detect_project_structure(self) -> Dict[str, Any]:
+        """
+        Detect project structure and suggest relevant directories and file types.
+        
+        Returns:
+            Dictionary with suggested directories, extensions, and exclusions.
+        """
+        from pathlib import Path
+        
+        suggested_dirs = []
+        suggested_extensions = set(['.md', '.txt'])  # Always include these
+        
+        # Common documentation directories
+        doc_dirs = ['docs', 'doc', 'documentation', 'wiki']
+        for dir_name in doc_dirs:
+            dir_path = self.project_root / dir_name
+            if dir_path.exists() and dir_path.is_dir():
+                suggested_dirs.append(f"{dir_name}/")
+        
+        # Check for README files
+        readme_files = list(self.project_root.glob("README*"))
+        if readme_files:
+            suggested_dirs.append("README.md")
+        
+        # Detect project type by files and add relevant extensions
+        project_files = list(self.project_root.glob("*"))
+        
+        # Python project
+        if any(f.name in ['setup.py', 'pyproject.toml', 'requirements.txt'] for f in project_files):
+            suggested_extensions.update(['.py', '.rst'])
+        
+        # JavaScript/TypeScript project
+        if any(f.name in ['package.json', 'tsconfig.json'] for f in project_files):
+            suggested_extensions.update(['.js', '.ts', '.jsx', '.tsx'])
+        
+        # PHP/Symfony project
+        if any(f.name in ['composer.json', 'symfony.lock'] for f in project_files):
+            suggested_extensions.update(['.php'])
+        
+        # iOS/Swift project
+        if any(f.suffix == '.xcodeproj' for f in project_files) or \
+           any(f.suffix == '.xcworkspace' for f in project_files):
+            suggested_extensions.update(['.swift', '.m', '.h'])
+        
+        # Configuration files
+        if any(f.suffix in ['.yaml', '.yml', '.json', '.toml'] for f in project_files):
+            suggested_extensions.update(['.yaml', '.yml', '.json', '.toml'])
+        
+        # If no specific directories found, suggest current directory
+        if not suggested_dirs:
+            suggested_dirs = ['.']
+        
+        # Standard exclusions
+        suggested_exclusions = ['node_modules/', '.git/', '__pycache__/', 'vendor/', 'venv/', '.venv/']
+        
+        return {
+            'directories': suggested_dirs,
+            'extensions': sorted(list(suggested_extensions)),
+            'exclusions': suggested_exclusions
+        }
+    
     def interactive_setup(self) -> DocRAGConfig:
         """
         Run interactive configuration wizard.
@@ -203,6 +264,9 @@ class ConfigManager:
             DocRAGConfig object with user-provided values.
         """
         print("🚀 DocRAG Kit - Interactive Setup\n")
+        
+        # Detect project structure
+        detected = self._detect_project_structure()
         
         # Project configuration
         print("📦 Project Configuration")
@@ -241,17 +305,24 @@ class ConfigManager:
         
         # Indexing configuration
         print("\n📁 Indexing Configuration")
-        print("Suggested directories: docs/, README.md, src/")
-        dirs_input = input("Directories to index (comma-separated) [docs/,README.md]: ").strip()
-        directories = [d.strip() for d in dirs_input.split(',')] if dirs_input else ['docs/', 'README.md']
         
-        print("\nSuggested extensions: .md, .txt, .py, .php, .swift, .json, .yaml")
-        exts_input = input("File extensions (comma-separated) [.md,.txt]: ").strip()
-        extensions = [e.strip() for e in exts_input.split(',')] if exts_input else ['.md', '.txt']
+        # Directories
+        default_dirs = ','.join(detected['directories'])
+        print(f"Detected directories: {', '.join(detected['directories'])}")
+        dirs_input = input(f"Directories to index (comma-separated) [{default_dirs}]: ").strip()
+        directories = [d.strip() for d in dirs_input.split(',')] if dirs_input else detected['directories']
         
-        print("\nSuggested exclusions: node_modules/, .git/, __pycache__/, vendor/")
-        excl_input = input("Exclusion patterns (comma-separated) [node_modules/,.git/,__pycache__/]: ").strip()
-        exclude_patterns = [p.strip() for p in excl_input.split(',')] if excl_input else ['node_modules/', '.git/', '__pycache__/']
+        # Extensions
+        default_exts = ','.join(detected['extensions'])
+        print(f"\nDetected file types: {', '.join(detected['extensions'])}")
+        exts_input = input(f"File extensions (comma-separated) [{default_exts}]: ").strip()
+        extensions = [e.strip() for e in exts_input.split(',')] if exts_input else detected['extensions']
+        
+        # Exclusions
+        default_excl = ','.join(detected['exclusions'])
+        print(f"\nSuggested exclusions: {', '.join(detected['exclusions'])}")
+        excl_input = input(f"Exclusion patterns (comma-separated) [{default_excl}]: ").strip()
+        exclude_patterns = [p.strip() for p in excl_input.split(',')] if excl_input else detected['exclusions']
         
         # GitHub token (optional)
         print("\n🔑 GitHub Integration (Optional)")
