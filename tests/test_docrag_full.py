@@ -55,7 +55,6 @@ def test_init():
         ".",                     # Directories (current dir)
         ".md,.txt",             # Extensions
         "",                      # Exclusions (use defaults)
-        "",                      # GitHub token (skip)
         "Y"                      # Create .gitignore
     ]
     

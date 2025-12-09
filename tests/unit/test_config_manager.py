@@ -195,6 +195,40 @@ class TestDocRAGConfig:
         assert config.project.name == "Test"
         assert config.llm.provider == "openai"
         assert config.chunking.chunk_size == 800
+    
+    def test_config_from_template_general(self):
+        """Test creating configuration from general template."""
+        config = DocRAGConfig.from_template('general')
+        
+        assert config.project.name == "My Project"
+        assert config.project.type == "general"
+        assert config.llm.provider == "openai"
+        assert config.llm.embedding_model == "text-embedding-3-small"
+        assert config.llm.llm_model == "gpt-4o-mini"
+        assert config.llm.temperature == 0.3
+        assert config.indexing.directories == ['docs/', 'README.md']
+        assert config.indexing.extensions == ['.md', '.txt', '.rst']
+        assert config.chunking.chunk_size == 800
+        assert config.chunking.chunk_overlap == 150
+        assert config.retrieval.top_k == 3
+        assert config.prompt.template  # Should have a template
+    
+    def test_config_from_template_symfony(self):
+        """Test creating configuration from symfony template."""
+        config = DocRAGConfig.from_template('symfony')
+        
+        assert config.project.type == "symfony"
+        assert config.indexing.directories == ['docs/', 'src/', 'config/']
+        assert '.php' in config.indexing.extensions
+        assert '.yaml' in config.indexing.extensions
+    
+    def test_config_from_template_ios(self):
+        """Test creating configuration from ios template."""
+        config = DocRAGConfig.from_template('ios')
+        
+        assert config.project.type == "ios"
+        assert config.indexing.directories == ['docs/', 'Sources/', 'README.md']
+        assert '.swift' in config.indexing.extensions
 
 
 class TestConfigManager:

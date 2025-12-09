@@ -190,10 +190,6 @@ OPENAI_API_KEY=your_openai_key_here
 # Google Gemini API Key
 # Get your key from: https://makersuite.google.com/app/apikey
 GOOGLE_API_KEY=your_gemini_key_here
-
-# GitHub Token (optional, for future integrations)
-# Get your token from: https://github.com/settings/tokens
-GITHUB_TOKEN=your_github_token_here
 """
     
     try:

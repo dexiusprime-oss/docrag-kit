@@ -474,7 +474,7 @@ def mcp_config():
     # Display configuration
     click.echo("🔌 MCP Server Configuration for Kiro\n")
     click.echo("Add this to your Kiro MCP configuration file:")
-    click.echo("~/.kiro/settings/mcp.json\n")
+    click.echo(".kiro/settings/mcp.json (workspace config)\n")
     
     click.echo("```json")
     click.echo(json.dumps(mcp_config, indent=2))
@@ -482,57 +482,61 @@ def mcp_config():
     
     # Display manual instructions
     click.echo("📝 Manual Setup Instructions:")
-    click.echo("1. Open or create: ~/.kiro/settings/mcp.json")
+    click.echo("1. Open or create: .kiro/settings/mcp.json")
     click.echo("2. Add the above configuration to the 'mcpServers' section")
     click.echo("3. Restart Kiro or reload MCP servers")
     click.echo("4. The server will appear as: " + server_name)
     
-    # Detect Kiro installation on macOS
-    if platform.system() == 'Darwin':
-        kiro_config_path = Path.home() / ".kiro" / "settings" / "mcp.json"
-        
-        if kiro_config_path.parent.exists():
-            click.echo("\n🎯 Kiro installation detected!")
-            
-            if click.confirm("   Would you like to automatically add this configuration?", default=True):
-                try:
-                    # Read existing config or create new one
-                    if kiro_config_path.exists():
-                        # Backup existing config
-                        backup_path = kiro_config_path.with_suffix('.json.backup')
-                        import shutil
-                        shutil.copy2(kiro_config_path, backup_path)
-                        click.echo(f"   ✅ Backed up existing config to {backup_path}")
-                        
-                        # Load existing config
-                        with open(kiro_config_path, 'r', encoding='utf-8') as f:
-                            existing_config = json.load(f)
-                    else:
-                        existing_config = {"mcpServers": {}}
-                    
-                    # Ensure mcpServers exists
-                    if "mcpServers" not in existing_config:
-                        existing_config["mcpServers"] = {}
-                    
-                    # Add new server entry
-                    existing_config["mcpServers"][server_name] = mcp_config["mcpServers"][server_name]
-                    
-                    # Ensure directory exists
-                    kiro_config_path.parent.mkdir(parents=True, exist_ok=True)
-                    
-                    # Write updated config
-                    with open(kiro_config_path, 'w', encoding='utf-8') as f:
-                        json.dump(existing_config, f, indent=2)
-                    
-                    click.echo(f"   ✅ Configuration added to {kiro_config_path}")
-                    click.echo("   🔄 Restart Kiro or reload MCP servers to activate")
+    # Try to add to workspace config automatically
+    workspace_config_path = project_root / ".kiro" / "settings" / "mcp.json"
+    
+    click.echo("\n🎯 Adding to workspace configuration...")
+    
+    if click.confirm("   Would you like to automatically add this configuration?", default=True):
+        try:
+            # Read existing config or create new one
+            if workspace_config_path.exists():
+                # Backup existing config
+                backup_path = workspace_config_path.with_suffix('.json.backup')
+                import shutil
+                shutil.copy2(workspace_config_path, backup_path)
+                click.echo(f"   ✅ Backed up existing config to {backup_path}")
                 
-                except Exception as e:
-                    click.echo(f"   ❌ Error adding configuration: {e}")
-                    click.echo("   Please add the configuration manually")
-        else:
-            click.echo("\n💡 Tip: Install Kiro to use this MCP server")
-            click.echo("   Visit: https://kiro.ai")
+                # Load existing config
+                with open(workspace_config_path, 'r', encoding='utf-8') as f:
+                    existing_config = json.load(f)
+            else:
+                existing_config = {"mcpServers": {}}
+            
+            # Ensure mcpServers exists
+            if "mcpServers" not in existing_config:
+                existing_config["mcpServers"] = {}
+            
+            # Add new server entry
+            existing_config["mcpServers"][server_name] = mcp_config["mcpServers"][server_name]
+            
+            # Ensure directory exists
+            workspace_config_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Write updated config
+            with open(workspace_config_path, 'w', encoding='utf-8') as f:
+                json.dump(existing_config, f, indent=2)
+            
+            click.echo(f"   ✅ Configuration added to {workspace_config_path}")
+            click.echo("   🔄 Restart Kiro or reload MCP servers to activate")
+            
+            # Add note about user config option
+            click.echo("\n💡 Note: Configuration added to workspace config (.kiro/settings/mcp.json)")
+            click.echo("   This makes the MCP server available only in this workspace")
+            click.echo("   To make it available globally, add to: ~/.kiro/settings/mcp.json")
+        
+        except Exception as e:
+            click.echo(f"   ❌ Error adding configuration: {e}")
+            click.echo("   Please add the configuration manually")
+    else:
+        click.echo("\n💡 Tip: You can manually add the configuration to:")
+        click.echo("   - Workspace: .kiro/settings/mcp.json (recommended)")
+        click.echo("   - User: ~/.kiro/settings/mcp.json (global)")
 
 
 if __name__ == "__main__":

@@ -37,8 +37,12 @@ docrag config
 
 ### `docrag mcp-config`
 ```bash
-# Safe to use - no interaction needed
+# Interactive command - asks for confirmation before adding config
+# Use with caution in automated contexts
 docrag mcp-config
+
+# Note: This command now adds MCP config to workspace (.kiro/settings/mcp.json)
+# instead of user config (~/.kiro/settings/mcp.json)
 ```
 
 ## Summary

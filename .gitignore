@@ -64,3 +64,7 @@ dmypy.json
 
 # Documentation builds
 docs/_build/
+
+# Test/demo projects
+test-demo-project/
+test_mcp_workspace_config.py

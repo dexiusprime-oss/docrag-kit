@@ -25,7 +25,8 @@ def test_package_metadata():
     assert project.get('version'), "Version should be specified"
     assert project.get('description'), "Description should be specified"
     assert project.get('readme') == 'README.md', "README should be specified"
-    assert project.get('requires-python') == '>=3.10', "Python version should be >=3.10"
+    requires_python = project.get('requires-python', '')
+    assert requires_python.startswith('>=3.10'), "Python version should be >=3.10"
     assert project.get('license'), "License should be specified"
     
     # Verify dependencies

@@ -82,6 +82,64 @@ class DocRAGConfig:
             retrieval=RetrievalConfig(**data['retrieval']),
             prompt=PromptConfig(**data['prompt'])
         )
+    
+    @classmethod
+    def from_template(cls, template: str = 'general') -> 'DocRAGConfig':
+        """
+        Create configuration from template.
+        
+        Args:
+            template: Template name (general, symfony, ios)
+        
+        Returns:
+            DocRAGConfig with default values for the template
+        """
+        from .prompt_templates import get_template_for_project_type
+        
+        # Default project name
+        project_name = "My Project"
+        
+        # Template-specific defaults
+        if template == 'symfony':
+            directories = ['docs/', 'src/', 'config/']
+            extensions = ['.md', '.php', '.yaml', '.yml', '.twig']
+        elif template == 'ios':
+            directories = ['docs/', 'Sources/', 'README.md']
+            extensions = ['.md', '.swift', '.h', '.m']
+        else:  # general
+            directories = ['docs/', 'README.md']
+            extensions = ['.md', '.txt', '.rst']
+        
+        return cls(
+            project=ProjectConfig(
+                name=project_name,
+                type=template
+            ),
+            llm=LLMConfig(
+                provider='openai',
+                embedding_model='text-embedding-3-small',
+                llm_model='gpt-4o-mini',
+                temperature=0.3
+            ),
+            indexing=IndexingConfig(
+                directories=directories,
+                extensions=extensions,
+                exclude_patterns=[
+                    'node_modules/', '.git/', '__pycache__/', 
+                    'venv/', '.venv/', 'vendor/', 'build/', 'dist/'
+                ]
+            ),
+            chunking=ChunkingConfig(
+                chunk_size=800,
+                chunk_overlap=150
+            ),
+            retrieval=RetrievalConfig(
+                top_k=3
+            ),
+            prompt=PromptConfig(
+                template=get_template_for_project_type(template)
+            )
+        )
 
 
 class ConfigManager:
@@ -324,11 +382,6 @@ class ConfigManager:
         excl_input = input(f"Exclusion patterns (comma-separated) [{default_excl}]: ").strip()
         exclude_patterns = [p.strip() for p in excl_input.split(',')] if excl_input else detected['exclusions']
         
-        # GitHub token (optional)
-        print("\n🔑 GitHub Integration (Optional)")
-        github_token_input = input("GitHub Personal Access Token (press Enter to skip): ").strip()
-        github_token = github_token_input if github_token_input else None
-        
         # Get prompt template based on project type
         from .prompt_templates import PromptTemplateManager
         prompt_template = PromptTemplateManager.get_template(project_type)
@@ -352,19 +405,18 @@ class ConfigManager:
             prompt=PromptConfig(template=prompt_template)
         )
         
-        # Save API key and GitHub token to .env
-        self._save_env_vars(provider, api_key, github_token)
+        # Save API key to .env
+        self._save_env_vars(provider, api_key)
         
         return config
 
-    def _save_env_vars(self, provider: str, api_key: str, github_token: Optional[str] = None) -> None:
+    def _save_env_vars(self, provider: str, api_key: str) -> None:
         """
-        Save API keys and tokens to .env file.
+        Save API key to .env file.
         
         Args:
             provider: LLM provider name (openai or gemini).
             api_key: API key for the provider.
-            github_token: Optional GitHub Personal Access Token.
         """
         # Read existing .env content if it exists
         existing_content = ""
@@ -384,10 +436,6 @@ class ConfigManager:
         # Check if key already exists
         if key_name not in existing_content:
             new_lines.append(f"{key_name}={api_key}")
-        
-        # Add GitHub token if provided
-        if github_token and 'GITHUB_TOKEN' not in existing_content:
-            new_lines.append(f"GITHUB_TOKEN={github_token}")
         
         # Append new content if there's anything to add
         if new_lines:
