@@ -5,9 +5,18 @@ This module implements a Model Context Protocol (MCP) server that provides
 semantic search capabilities over project documentation. It integrates with
 Kiro AI to enable intelligent question-answering about project documentation.
 
-The server provides two main tools:
-1. search_docs: Semantic search with optional source file listing
-2. list_indexed_docs: List all indexed documentation files
+The server provides three main tools:
+1. search_docs: Fast semantic search returning relevant document fragments
+   - Best for agents that need to quickly find specific documentation
+   - Returns raw document chunks with source files
+   - No LLM processing, just vector similarity search
+   
+2. answer_question: AI-generated comprehensive answers
+   - Best for complex questions requiring synthesis and explanation
+   - Uses LLM to generate contextual answers from multiple sources
+   - Includes source attribution
+   
+3. list_indexed_docs: List all indexed documentation files
 
 Requirements covered:
 - 5.1-5.12: MCP server functionality
@@ -91,21 +100,47 @@ class MCPServer:
             return [
                 types.Tool(
                     name="search_docs",
-                    description="Search project documentation using semantic search. "
-                                "Поиск в документации проекта с использованием семантического поиска.",
+                    description="Fast semantic search returning relevant document fragments. "
+                                "Best for agents that need to quickly find and read specific documentation sections. "
+                                "Быстрый семантический поиск с фрагментами документов.",
                     inputSchema={
                         "type": "object",
                         "properties": {
                             "question": {
                                 "type": "string",
-                                "description": "Question to search for in the documentation. "
-                                              "Вопрос для поиска в документации."
+                                "description": "Question or topic to search for in the documentation. "
+                                              "Вопрос или тема для поиска в документации."
+                            },
+                            "max_results": {
+                                "type": "integer",
+                                "description": "Maximum number of results to return (1-10). Default: 3",
+                                "default": 3,
+                                "minimum": 1,
+                                "maximum": 10
+                            }
+                        },
+                        "required": ["question"]
+                    }
+                ),
+                types.Tool(
+                    name="answer_question",
+                    description="Get a comprehensive AI-generated answer based on project documentation. "
+                                "Uses LLM to synthesize information from multiple sources. "
+                                "Best for complex questions requiring context and explanation. "
+                                "Получить полный ответ на основе документации проекта с использованием LLM.",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "question": {
+                                "type": "string",
+                                "description": "Question to answer using project documentation. "
+                                              "Вопрос для ответа на основе документации проекта."
                             },
                             "include_sources": {
                                 "type": "boolean",
                                 "description": "Include source file names in the response. "
                                               "Включить имена исходных файлов в ответ.",
-                                "default": False
+                                "default": True
                             }
                         },
                         "required": ["question"]
@@ -130,7 +165,14 @@ class MCPServer:
                 if name == "search_docs":
                     result = await self.handle_search_docs(
                         question=arguments.get("question", ""),
-                        include_sources=arguments.get("include_sources", False)
+                        max_results=arguments.get("max_results", 3)
+                    )
+                    return [types.TextContent(type="text", text=result)]
+                
+                elif name == "answer_question":
+                    result = await self.handle_answer_question(
+                        question=arguments.get("question", ""),
+                        include_sources=arguments.get("include_sources", True)
                     )
                     return [types.TextContent(type="text", text=result)]
                 
@@ -232,16 +274,84 @@ class MCPServer:
         
         return self._qa_chain
 
-    async def handle_search_docs(self, question: str, include_sources: bool = False) -> str:
+    async def handle_search_docs(self, question: str, max_results: int = 3) -> str:
         """
-        Handle search_docs tool call.
+        Handle search_docs tool call - returns relevant document fragments.
         
         Args:
             question: Question to search for.
+            max_results: Maximum number of results to return (1-10).
+        
+        Returns:
+            Formatted search results with document fragments and metadata.
+        
+        Raises:
+            ValueError: If question is empty or database errors occur.
+        """
+        if not question or not question.strip():
+            raise ValueError("❌ Question cannot be empty")
+        
+        # Validate max_results
+        max_results = max(1, min(10, max_results))
+        
+        # Get retriever
+        try:
+            _, retriever = self.get_qa_chain()
+        except ValueError as e:
+            raise ValueError(str(e))
+        
+        # Execute search
+        try:
+            # Get relevant documents with scores
+            source_docs = retriever.invoke(question)
+            
+            if not source_docs:
+                return "📭 No relevant documents found for your query."
+            
+            # Limit results
+            source_docs = source_docs[:max_results]
+            
+            # Format results
+            results = []
+            results.append(f"🔍 Found {len(source_docs)} relevant document(s):\n")
+            
+            for idx, doc in enumerate(source_docs, 1):
+                metadata = doc.metadata
+                content = doc.page_content
+                
+                # Extract source file
+                source_file = "Unknown"
+                if 'source_file' in metadata:
+                    source_file = metadata['source_file']
+                elif 'source' in metadata:
+                    source_path = Path(metadata['source'])
+                    source_file = str(source_path.relative_to(self.project_root))
+                
+                # Truncate content if too long
+                max_content_length = 800
+                if len(content) > max_content_length:
+                    content = content[:max_content_length] + "..."
+                
+                # Format result
+                results.append(f"--- Result {idx} ---")
+                results.append(f"📄 Source: {source_file}")
+                results.append(f"\n{content}\n")
+            
+            return "\n".join(results)
+        
+        except Exception as e:
+            raise ValueError(f"❌ Search failed: {str(e)}")
+
+    async def handle_answer_question(self, question: str, include_sources: bool = True) -> str:
+        """
+        Handle answer_question tool call - returns AI-generated answer.
+        
+        Args:
+            question: Question to answer.
             include_sources: Whether to include source file names in response.
         
         Returns:
-            Answer string, optionally with source files.
+            AI-generated answer, optionally with source files.
         
         Raises:
             ValueError: If question is empty or database/API errors occur.
@@ -270,11 +380,15 @@ class MCPServer:
                             source_files.add(metadata['source_file'])
                         elif 'source' in metadata:
                             source_path = Path(metadata['source'])
-                            source_files.add(source_path.name)
+                            try:
+                                rel_path = source_path.relative_to(self.project_root)
+                                source_files.add(str(rel_path))
+                            except ValueError:
+                                source_files.add(source_path.name)
                     
                     if source_files:
                         sources_list = sorted(list(source_files))
-                        answer += f"\n\nИсточники / Sources:\n" + "\n".join(f"- {s}" for s in sources_list)
+                        answer += f"\n\n📚 Sources:\n" + "\n".join(f"  • {s}" for s in sources_list)
             
             return answer
         

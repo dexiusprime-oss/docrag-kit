@@ -31,5 +31,6 @@ Developers who want to enable AI assistants to understand and answer questions a
 
 ## MCP Tools Provided
 
-- `search_docs`: Semantic search over project documentation
+- `search_docs`: Fast semantic search returning document fragments (no LLM, ~1s)
+- `answer_question`: AI-generated comprehensive answers (uses LLM, ~3-5s)
 - `list_indexed_docs`: List all indexed source files

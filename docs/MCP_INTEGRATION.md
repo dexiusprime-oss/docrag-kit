@@ -15,11 +15,31 @@ This guide explains how to integrate DocRAG Kit with Kiro AI using the Model Con
 
 ## Overview
 
-DocRAG Kit provides an MCP server that exposes two tools to Kiro AI:
-- **search_docs**: Semantic search over your project documentation
+DocRAG Kit provides an MCP server that exposes three tools to Kiro AI:
+- **search_docs**: Fast semantic search returning relevant document fragments with source files
+- **answer_question**: AI-generated comprehensive answers synthesized from multiple sources
 - **list_indexed_docs**: List all indexed source files
 
 The MCP server runs locally and connects to your project's vector database.
+
+### Tool Selection Guide
+
+**Use `search_docs` when:**
+- You need quick access to specific documentation sections
+- You want to read the raw documentation yourself
+- You're looking for exact quotes or code examples
+- You need multiple relevant fragments to review
+
+**Use `answer_question` when:**
+- You need a synthesized answer from multiple sources
+- The question requires context and explanation
+- You want a direct answer without reading raw docs
+- You need source attribution for the answer
+
+**Use `list_indexed_docs` when:**
+- You want to see what documentation is available
+- You're verifying the indexing worked correctly
+- You need to know which files are searchable
 
 ## Prerequisites
 
@@ -210,8 +230,25 @@ The server should start without errors. Press Ctrl+C to stop.
 ### Method 4: Verify Tools Available
 
 In Kiro chat, type `/` to see available tools. You should see:
-- `search_docs` - Search project documentation
+- `search_docs` - Fast semantic search with document fragments
+- `answer_question` - AI-generated comprehensive answers
 - `list_indexed_docs` - List indexed files
+
+### Method 5: Test Both Search Tools
+
+Compare the two search approaches:
+
+**Test `search_docs`:**
+```
+Use search_docs to find information about "deployment process"
+```
+Expected: Raw document fragments with source files
+
+**Test `answer_question`:**
+```
+Use answer_question to answer "How do I deploy this project?"
+```
+Expected: Synthesized answer with explanation and sources
 
 ## Troubleshooting
 
@@ -399,7 +436,7 @@ To avoid approval prompts for MCP tools, add to `mcp.json`:
       "env": {
         "PYTHONPATH": "/path/to/project"
       },
-      "autoApprove": ["search_docs", "list_indexed_docs"]
+      "autoApprove": ["search_docs", "answer_question", "list_indexed_docs"]
     }
   }
 }
