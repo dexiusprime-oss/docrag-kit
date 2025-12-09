@@ -410,7 +410,8 @@ def mcp_config():
         return
     
     # Generate MCP server configuration
-    server_name = f"docrag-{project_name}".lower().replace(" ", "-")
+    # Use simple name like other MCP servers (context7, perplexity, etc.)
+    server_name = "docrag"
     
     # Detect Python executable with MCP library installed
     import sys

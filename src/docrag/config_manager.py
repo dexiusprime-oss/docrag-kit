@@ -41,7 +41,7 @@ class ChunkingConfig:
 @dataclass
 class RetrievalConfig:
     """Retrieval configuration."""
-    top_k: int = 5
+    top_k: int = 3  # Reduced from 5 for faster response
 
 
 @dataclass
@@ -276,8 +276,8 @@ class ConfigManager:
                 extensions=extensions,
                 exclude_patterns=exclude_patterns
             ),
-            chunking=ChunkingConfig(chunk_size=1000, chunk_overlap=200),
-            retrieval=RetrievalConfig(top_k=5),
+            chunking=ChunkingConfig(chunk_size=800, chunk_overlap=150),  # Smaller chunks for faster processing
+            retrieval=RetrievalConfig(top_k=3),  # Fewer docs for faster response
             prompt=PromptConfig(template=prompt_template)
         )
         
