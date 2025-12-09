@@ -318,15 +318,15 @@ List all indexed documents in the project.
 
 ### Quick Links
 
-- **[SECURITY.md](SECURITY.md)** - Complete security guide (read this first!)
-- **[EXAMPLES.md](EXAMPLES.md)** - Detailed usage examples for different project types
-- **[MCP_INTEGRATION.md](MCP_INTEGRATION.md)** - Complete guide for Kiro AI integration
-- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Solutions for common issues
-- **[API_REFERENCE.md](API_REFERENCE.md)** - Complete CLI and configuration reference
+- **[docs/SECURITY.md](docs/SECURITY.md)** - Complete security guide (read this first!)
+- **[docs/EXAMPLES.md](docs/EXAMPLES.md)** - Detailed usage examples for different project types
+- **[docs/MCP_INTEGRATION.md](docs/MCP_INTEGRATION.md)** - Complete guide for Kiro AI integration
+- **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - Solutions for common issues
+- **[docs/API_REFERENCE.md](docs/API_REFERENCE.md)** - Complete CLI and configuration reference
 
 ### Examples
 
-See [EXAMPLES.md](EXAMPLES.md) for detailed usage examples including:
+See [docs/EXAMPLES.md](docs/EXAMPLES.md) for detailed usage examples including:
 - Symfony project setup
 - iOS project setup
 - General documentation project
@@ -335,7 +335,7 @@ See [EXAMPLES.md](EXAMPLES.md) for detailed usage examples including:
 
 ### MCP Integration
 
-See [MCP_INTEGRATION.md](MCP_INTEGRATION.md) for complete integration guide:
+See [docs/MCP_INTEGRATION.md](docs/MCP_INTEGRATION.md) for complete integration guide:
 - Getting MCP configuration
 - Manual and automatic setup
 - Testing MCP server
@@ -343,7 +343,7 @@ See [MCP_INTEGRATION.md](MCP_INTEGRATION.md) for complete integration guide:
 
 ### Troubleshooting
 
-See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for detailed solutions to:
+See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for detailed solutions to:
 - Installation issues
 - API key problems
 - Indexing errors
@@ -425,11 +425,12 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ### Documentation
 - [README.md](README.md) - Main documentation
-- [SECURITY.md](SECURITY.md) - Security best practices
-- [EXAMPLES.md](EXAMPLES.md) - Usage examples
-- [MCP_INTEGRATION.md](MCP_INTEGRATION.md) - MCP setup guide
-- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Troubleshooting guide
-- [API_REFERENCE.md](API_REFERENCE.md) - Complete API reference
+- [docs/](docs/) - Complete documentation
+- [docs/SECURITY.md](docs/SECURITY.md) - Security best practices
+- [docs/EXAMPLES.md](docs/EXAMPLES.md) - Usage examples
+- [docs/MCP_INTEGRATION.md](docs/MCP_INTEGRATION.md) - MCP setup guide
+- [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) - Troubleshooting guide
+- [docs/API_REFERENCE.md](docs/API_REFERENCE.md) - Complete API reference
 
 ### Community
 - Issues: [GitHub Issues](https://github.com/yourusername/docrag-kit/issues)

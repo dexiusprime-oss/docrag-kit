@@ -76,7 +76,9 @@ def cli():
 
 
 @cli.command()
-def init():
+@click.option("--non-interactive", is_flag=True, help="Use default values without prompts")
+@click.option("--template", type=click.Choice(['general', 'symfony', 'ios']), default='general', help="Project template to use")
+def init(non_interactive, template):
     """Initialize DocRAG in current project."""
     from pathlib import Path
     from .config_manager import ConfigManager
@@ -90,9 +92,15 @@ def init():
         return
     
     try:
-        # Run interactive setup wizard
+        # Run setup wizard (interactive or non-interactive)
         config_manager = ConfigManager()
-        config = config_manager.interactive_setup()
+        if non_interactive:
+            # Use default configuration based on template
+            from .config_manager import DocRAGConfig
+            config = DocRAGConfig.from_template(template)
+            click.echo(f"✅ Using {template} template with default values")
+        else:
+            config = config_manager.interactive_setup()
         
         # Create .docrag/ directory
         docrag_dir.mkdir(parents=True, exist_ok=True)
@@ -147,7 +155,8 @@ def init():
 
 
 @cli.command()
-def index():
+@click.option("--force", is_flag=True, help="Overwrite existing database without confirmation")
+def index(force):
     """Index project documents."""
     from pathlib import Path
     from .config_manager import ConfigManager
@@ -176,7 +185,7 @@ def index():
         db_path = project_root / ".docrag" / "vectordb"
         if db_path.exists():
             click.echo("⚠️  Vector database already exists")
-            if not click.confirm("   Overwrite existing database?", default=False):
+            if not force and not click.confirm("   Overwrite existing database?", default=False):
                 click.echo("❌ Indexing cancelled")
                 return
         
@@ -225,7 +234,8 @@ def index():
 
 
 @cli.command()
-def reindex():
+@click.option("--force", is_flag=True, help="Skip confirmation prompt")
+def reindex(force):
     """Rebuild vector database from scratch."""
     from pathlib import Path
     from .config_manager import ConfigManager
@@ -251,7 +261,7 @@ def reindex():
     click.echo("   All indexed data will be removed and rebuilt from scratch")
     
     # Ask for confirmation
-    if not click.confirm("\n   Continue with reindexing?", default=False):
+    if not force and not click.confirm("\n   Continue with reindexing?", default=False):
         click.echo("❌ Reindexing cancelled")
         return
     

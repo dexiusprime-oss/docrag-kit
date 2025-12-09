@@ -6,11 +6,24 @@
 docrag-kit/
 ├── src/docrag/              # Main package source code
 ├── tests/                   # Test suite
+│   ├── unit/                # Unit tests
+│   ├── integration/         # Integration tests
+│   ├── property/            # Property-based tests
+│   ├── fixtures/            # Test fixtures
+│   └── scripts/             # Test scripts
+├── docs/                    # Documentation
+│   ├── API_REFERENCE.md     # API documentation
+│   ├── DOCUMENTATION.md     # Full documentation
+│   ├── EXAMPLES.md          # Usage examples
+│   ├── MCP_INTEGRATION.md   # MCP integration guide
+│   ├── SECURITY.md          # Security guidelines
+│   ├── TESTING.md           # Testing guide
+│   └── TROUBLESHOOTING.md   # Troubleshooting
 ├── .kiro/                   # Kiro AI configuration
+│   └── steering/            # Steering files for agents
 ├── pyproject.toml           # Project configuration
 ├── setup.py                 # Build compatibility wrapper
 ├── README.md                # Main documentation
-├── EXAMPLES.md              # Usage examples
 ├── LICENSE                  # MIT license
 └── MANIFEST.in              # Package data manifest
 ```
