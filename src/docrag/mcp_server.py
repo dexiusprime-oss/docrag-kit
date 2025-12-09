@@ -29,8 +29,9 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp import types
 
-from langchain.chains.retrieval_qa.base import RetrievalQA
 from langchain_core.prompts import PromptTemplate
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
 from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
 
@@ -150,7 +151,7 @@ class MCPServer:
         Lazy load QA chain.
         
         Returns:
-            RetrievalQA chain instance.
+            Tuple of (chain, retriever) for executing queries.
         
         Raises:
             ValueError: If database doesn't exist or API key is missing.
@@ -213,14 +214,21 @@ class MCPServer:
             input_variables=["context", "question"]
         )
         
-        # Create QA chain
-        self._qa_chain = RetrievalQA.from_chain_type(
-            llm=llm,
-            chain_type="stuff",
-            retriever=retriever,
-            return_source_documents=True,
-            chain_type_kwargs={"prompt": prompt}
+        # Helper function to format documents
+        def format_docs(docs):
+            return "\n\n".join(doc.page_content for doc in docs)
+        
+        # Create QA chain using LCEL (LangChain Expression Language)
+        # This is the new LangChain 1.x pattern
+        chain = (
+            {"context": retriever | format_docs, "question": RunnablePassthrough()}
+            | prompt
+            | llm
+            | StrOutputParser()
         )
+        
+        # Store both chain and retriever for source document retrieval
+        self._qa_chain = (chain, retriever)
         
         return self._qa_chain
 
@@ -241,17 +249,18 @@ class MCPServer:
         if not question or not question.strip():
             raise ValueError("❌ Question cannot be empty")
         
-        # Get QA chain
-        qa_chain = self.get_qa_chain()
+        # Get QA chain and retriever
+        chain, retriever = self.get_qa_chain()
         
         # Execute query
         try:
-            result = qa_chain.invoke({"query": question})
-            answer = result.get('result', '')
+            # Invoke the chain with the question
+            answer = chain.invoke(question)
             
             # Append sources if requested
-            if include_sources and 'source_documents' in result:
-                source_docs = result['source_documents']
+            if include_sources:
+                # Get source documents from retriever
+                source_docs = retriever.invoke(question)
                 if source_docs:
                     # Extract unique source files
                     source_files = set()
