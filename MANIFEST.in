@@ -3,3 +3,4 @@ include LICENSE
 include pyproject.toml
 recursive-include src/docrag *.py
 recursive-include src/docrag py.typed
+recursive-include docs *.md
