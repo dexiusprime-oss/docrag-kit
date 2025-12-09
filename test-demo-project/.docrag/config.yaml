@@ -1,0 +1,40 @@
+project:
+  name: Test Demo Project
+  type: general
+llm:
+  provider: openai
+  llm_model: gpt-4o-mini
+  embedding_model: text-embedding-3-small
+  temperature: 0.3
+indexing:
+  directories:
+  - ./
+  extensions:
+  - .md
+  - .txt
+  exclude_patterns:
+  - .git/*
+  - .docrag/*
+  - '*.pyc'
+  - __pycache__/*
+  - .env
+chunking:
+  chunk_size: 1000
+  chunk_overlap: 200
+retrieval:
+  top_k: 5
+prompt:
+  template: 'You are a helpful assistant that answers questions about the Test Demo
+    Project based on the provided documentation.
+
+
+    Context from documentation:
+
+    {context}
+
+
+    Question: {question}
+
+
+    Please provide a clear and accurate answer based on the documentation above. If
+    the answer is not in the documentation, say so.'

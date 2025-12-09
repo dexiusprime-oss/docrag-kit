@@ -4,8 +4,8 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional
 import fnmatch
 import chardet
-from langchain.schema import Document
-from langchain.text_splitter import (
+from langchain_core.documents import Document
+from langchain_text_splitters import (
     MarkdownTextSplitter,
     RecursiveCharacterTextSplitter,
     CharacterTextSplitter
