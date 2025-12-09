@@ -502,10 +502,13 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Changelog
 
-### 0.1.2 (2024-12-09)
+### 0.1.3 (2024-12-09)
 - **NEW**: Added `answer_question` MCP tool for AI-generated comprehensive answers
 - All three MCP tools now available: `search_docs`, `answer_question`, `list_indexed_docs`
-- Improved documentation with tool comparison guide
+- Fixed: v0.1.2 was missing the answer_question tool
+
+### 0.1.2 (2024-12-09)
+- Skipped due to packaging issue
 
 ### 0.1.1 (2024-12-09)
 - Fixed GitHub Actions permissions for automated releases
