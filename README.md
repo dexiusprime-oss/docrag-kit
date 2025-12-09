@@ -502,10 +502,16 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Changelog
 
-### 0.1.3 (2024-12-09)
+### 0.1.4 (2024-12-09)
 - **NEW**: Added `answer_question` MCP tool for AI-generated comprehensive answers
+- Split `search_docs` into two distinct tools:
+  - `search_docs`: Fast semantic search returning document fragments (no LLM, ~1s)
+  - `answer_question`: AI-generated comprehensive answers (uses LLM, ~3-5s)
 - All three MCP tools now available: `search_docs`, `answer_question`, `list_indexed_docs`
-- Fixed: v0.1.2 was missing the answer_question tool
+- Improved tool descriptions and parameter schemas
+
+### 0.1.3 (2024-12-09)
+- Skipped due to packaging issue
 
 ### 0.1.2 (2024-12-09)
 - Skipped due to packaging issue
