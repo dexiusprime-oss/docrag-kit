@@ -1,5 +1,9 @@
 # DocRAG Kit
 
+![Tests](https://github.com/dexiusprime-oss/docrag-kit/workflows/Tests/badge.svg)
+![Python](https://img.shields.io/badge/python-3.10%2B-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+
 Universal RAG (Retrieval-Augmented Generation) system for project documentation. Quickly add AI-powered semantic search to any project.
 
 ## Features
