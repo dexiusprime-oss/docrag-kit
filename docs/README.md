@@ -2,7 +2,7 @@
 
 Complete documentation for DocRAG Kit - Universal RAG system for project documentation.
 
-## 📚 Documentation Index
+## Documentation Index
 
 ### Getting Started
 - [Main README](../README.md) - Quick start and overview
