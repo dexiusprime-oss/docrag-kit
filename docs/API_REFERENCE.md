@@ -101,7 +101,7 @@ cd my-project
 docrag index
 
 # Output:
-# 📚 Indexing documents...
+# Indexing documents...
 # ✓ Found 45 files to index
 # ✓ Processing documents...
 # ✓ Creating embeddings...
@@ -112,7 +112,7 @@ docrag index
 # - Chunks created: 234
 # - Total characters: 89,432
 # 
-# ✅ Indexing complete!
+# Indexing complete!
 ```
 
 **Exit Codes**:
@@ -154,11 +154,11 @@ None
 docrag reindex
 
 # Output:
-# ⚠️  Warning: This will delete the existing vector database
+# Warning: This will delete the existing vector database
 # ? Continue? [y/N] y
 # 
-# 🗑️  Deleting old database...
-# 📚 Indexing documents...
+# Deleting old database...
+# Indexing documents...
 # ...
 ```
 
@@ -240,7 +240,7 @@ Generates and displays the MCP server configuration that should be added to Kiro
 docrag mcp-config
 
 # Output:
-# 🔌 MCP Server Configuration for Kiro
+# MCP Server Configuration for Kiro
 # 
 # Add the following to your Kiro MCP configuration file:
 # ~/.kiro/settings/mcp.json
@@ -693,11 +693,11 @@ OPENAI_API_KEY=sk-proj-abc123def456...
 
 ### Security Notes
 
-- ⚠️ Never commit `.env` to version control
-- ✅ Always keep `.env` in `.gitignore`
-- ✅ Use `.env.example` as a template for team members
-- ✅ Rotate API keys regularly
-- ✅ Monitor API usage to detect unauthorized access
+- Never commit `.env` to version control
+- Always keep `.env` in `.gitignore`
+- Use `.env.example` as a template for team members
+- Rotate API keys regularly
+- Monitor API usage to detect unauthorized access
 
 ---
 

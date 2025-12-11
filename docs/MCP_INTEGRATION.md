@@ -62,7 +62,7 @@ This command will display the MCP server configuration for your project.
 
 **Example output:**
 ```
-🔌 MCP Server Configuration for Kiro
+MCP Server Configuration for Kiro
 
 Add the following to your Kiro MCP configuration file:
 ~/.kiro/settings/mcp.json
@@ -81,14 +81,14 @@ Add the following to your Kiro MCP configuration file:
   }
 }
 
-📝 Instructions:
+Instructions:
 1. Copy the configuration above
 2. Open ~/.kiro/settings/mcp.json in your editor
 3. Add the new server entry to the "mcpServers" object
 4. Save the file
 5. Restart Kiro or reload MCP servers
 
-✅ Your MCP server will be available as: my-project-docs
+Your MCP server will be available as: my-project-docs
 ```
 
 ## Manual Configuration
@@ -157,11 +157,11 @@ Open `~/.kiro/settings/mcp.json` in your editor and add your project's server co
 ### Step 3: Verify Configuration
 
 Check that:
-- ✅ Server name is unique (e.g., "my-project-docs")
-- ✅ Path to `mcp_server.py` is absolute
-- ✅ Path exists and file is present
-- ✅ PYTHONPATH points to project root
-- ✅ JSON syntax is valid (no trailing commas)
+- Server name is unique (e.g., "my-project-docs")
+- Path to `mcp_server.py` is absolute
+- Path exists and file is present
+- PYTHONPATH points to project root
+- JSON syntax is valid (no trailing commas)
 
 ### Step 4: Reload MCP Servers
 
@@ -186,10 +186,10 @@ docrag mcp-config
 ```
 
 If you choose "yes":
-- ✅ Existing `mcp.json` is backed up to `mcp.json.backup`
-- ✅ New server entry is added without overwriting existing servers
-- ✅ Configuration is validated before saving
-- ✅ Instructions for reloading are displayed
+- Existing `mcp.json` is backed up to `mcp.json.backup`
+- New server entry is added without overwriting existing servers
+- Configuration is validated before saving
+- Instructions for reloading are displayed
 
 ## Testing MCP Server
 
@@ -446,8 +446,8 @@ To avoid approval prompts for MCP tools, add to `mcp.json`:
 
 ### 1. Use Descriptive Server Names
 ```
-✅ Good: "symfony-ecommerce-docs", "ios-banking-app-docs"
-❌ Bad: "docs", "server1", "test"
+Good: "symfony-ecommerce-docs", "ios-banking-app-docs"
+Bad: "docs", "server1", "test"
 ```
 
 ### 2. Keep Configuration Organized
@@ -507,10 +507,10 @@ If you encounter issues not covered in this guide:
 
 After successful MCP integration:
 
-1. ✅ Test with sample questions
-2. ✅ Adjust configuration for optimal results
-3. ✅ Set up reindexing workflow
-4. ✅ Share setup with team members
-5. ✅ Explore advanced features
+1. Test with sample questions
+2. Adjust configuration for optimal results
+3. Set up reindexing workflow
+4. Share setup with team members
+5. Explore advanced features
 
 See [EXAMPLES.md](EXAMPLES.md) for more usage examples.

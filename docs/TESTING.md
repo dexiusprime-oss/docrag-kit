@@ -2,11 +2,11 @@
 
 ## Installation Test Results
 
-✅ **Package successfully published to GitHub**: https://github.com/dexiusprime-oss/docrag-kit
+**Package successfully published to GitHub**: https://github.com/dexiusprime-oss/docrag-kit
 
-✅ **Installation tested** from GitHub repository
+**Installation tested** from GitHub repository
 
-✅ **Python 3.10+ requirement** handled automatically via pyenv
+**Python 3.10+ requirement** handled automatically via pyenv
 
 ## Quick Start Testing
 
@@ -72,11 +72,11 @@ Run the automated test script:
 ```
 
 This script:
-- ✅ Checks Python version
-- ✅ Installs Python 3.10+ via pyenv if needed
-- ✅ Installs docrag-kit from GitHub
-- ✅ Verifies CLI is working
-- ✅ Creates test project with sample docs
+- Checks Python version
+- Installs Python 3.10+ via pyenv if needed
+- Installs docrag-kit from GitHub
+- Verifies CLI is working
+- Creates test project with sample docs
 
 ## Next Steps
 
@@ -100,8 +100,8 @@ pip install docrag-kit
 ### Integration Testing
 
 Test the full workflow:
-1. ✅ Installation
-2. ✅ Initialization
+1. Installation
+2. Initialization
 3. ⏳ Indexing (requires API key)
 4. ⏳ MCP server (requires Kiro configuration)
 5. ⏳ Search queries (requires indexed docs)

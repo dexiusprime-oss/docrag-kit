@@ -23,11 +23,11 @@ API keys and tokens that must NEVER be committed:
 
 ### Required File Structure
 
-✅ **ALLOWED in git:**
+**ALLOWED in git:**
 - `.env.example` - Template with placeholder values like `your_key_here`
 - `.gitignore` - Must include `.env` exclusion
 
-❌ **FORBIDDEN in git:**
+**FORBIDDEN in git:**
 - `.env` - Contains real API keys
 - Any file with actual API keys or tokens
 

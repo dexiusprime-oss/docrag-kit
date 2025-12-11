@@ -249,7 +249,7 @@ cat > .git/hooks/pre-commit << 'EOF'
 
 # Check if .env is being committed
 if git diff --cached --name-only | grep -q "^\.env$"; then
-    echo "❌ ERROR: Attempting to commit .env file!"
+    echo "ERROR: Attempting to commit .env file!"
     echo ""
     echo "This file contains sensitive API keys and should never be committed."
     echo ""
@@ -263,7 +263,7 @@ fi
 
 # Check if any file contains potential API keys
 if git diff --cached | grep -qE "(OPENAI_API_KEY|GOOGLE_API_KEY|sk-[a-zA-Z0-9]{32,})"; then
-    echo "⚠️  WARNING: Potential API key detected in staged changes!"
+    echo "WARNING: Potential API key detected in staged changes!"
     echo ""
     echo "Please review your changes carefully."
     echo "API keys should only be in .env file (which should be gitignored)."
@@ -281,7 +281,7 @@ EOF
 # Make executable
 chmod +x .git/hooks/pre-commit
 
-echo "✅ Pre-commit hook installed successfully!"
+echo "Pre-commit hook installed successfully!"
 ```
 
 ### Manual Setup

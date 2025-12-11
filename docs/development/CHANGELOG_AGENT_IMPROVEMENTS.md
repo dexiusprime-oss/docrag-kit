@@ -35,7 +35,7 @@ The deployment process consists of three steps:
 2. Test: npm test  
 3. Deploy: ./deploy.sh
 
-📚 Sources:
+Sources:
   • docs/DEPLOYMENT.md
   • README.md
 ```
@@ -81,16 +81,16 @@ DB_NAME=myapp
 ### 3. Tool Selection Guide
 
 **Use `search_docs` when**:
-- ✅ Need quick access to specific sections
-- ✅ Want to read raw documentation
-- ✅ Looking for exact quotes or code examples
-- ✅ Speed is priority (no LLM call)
+- Need quick access to specific sections
+- Want to read raw documentation
+- Looking for exact quotes or code examples
+- Speed is priority (no LLM call)
 
 **Use `answer_question` when**:
-- ✅ Need synthesized answer from multiple sources
-- ✅ Question requires context and explanation
-- ✅ Want direct answer without reading raw docs
-- ✅ Need source attribution
+- Need synthesized answer from multiple sources
+- Question requires context and explanation
+- Want direct answer without reading raw docs
+- Need source attribution
 
 ### 4. Documentation Updates
 
@@ -141,14 +141,14 @@ DB_NAME=myapp
 5. Added relative path resolution for sources
 
 **Backward Compatibility**: 
-- ✅ Existing `search_docs` calls still work
-- ✅ `list_indexed_docs` unchanged
-- ⚠️ `search_docs` output format changed (now includes content)
+- Existing `search_docs` calls still work
+- `list_indexed_docs` unchanged
+- `search_docs` output format changed (now includes content)
 
 ### Testing
 
-**Syntax validation**: ✅ Passed
-**Type checking**: ✅ No diagnostics
+**Syntax validation**: Passed
+**Type checking**: No diagnostics
 **Manual testing**: Recommended after installation
 
 ## Usage Examples

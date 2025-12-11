@@ -50,13 +50,13 @@ docrag doctor
 ```
 
 This will check:
-- ✅ DocRAG initialization
-- ✅ Configuration files
-- ✅ API keys
-- ✅ Vector database
-- ✅ Python environment
-- ✅ Required packages
-- ✅ MCP configuration
+- DocRAG initialization
+- Configuration files
+- API keys
+- Vector database
+- Python environment
+- Required packages
+- MCP configuration
 
 ### Common Issues
 
@@ -70,7 +70,7 @@ ModuleNotFoundError: No module named 'docrag.config_manager'
 **Solution:**
 The MCP server must be run through the installed package, not as a script.
 
-✅ **Correct MCP Configuration:**
+**Correct MCP Configuration:**
 ```json
 {
   "mcpServers": {
@@ -84,11 +84,11 @@ The MCP server must be run through the installed package, not as a script.
 }
 ```
 
-❌ **Incorrect (don't use):**
+**Incorrect (don't use):**
 ```json
 {
   "command": "python",
-  "args": [".docrag/mcp_server.py"]  // ❌ Relative imports won't work
+  "args": [".docrag/mcp_server.py"]  // Relative imports won't work
 }
 ```
 
@@ -96,7 +96,7 @@ The MCP server must be run through the installed package, not as a script.
 
 **Problem:**
 ```
-❌ Error: Configuration not found
+Error: Configuration not found
 ```
 
 **Solution:**
@@ -109,7 +109,7 @@ docrag init
 
 **Problem:**
 ```
-⚠️  Vector database not found
+Vector database not found
 ```
 
 **Solution:**
@@ -122,7 +122,7 @@ docrag index
 
 **Problem:**
 ```
-❌ OpenAI API key not found
+OpenAI API key not found
 ```
 
 **Solution:**
@@ -137,7 +137,7 @@ OPENAI_API_KEY=sk-your-key-here
 
 **Problem:**
 ```
-❌ Python 3.9 is too old (need 3.10+)
+Python 3.9 is too old (need 3.10+)
 ```
 
 **Solution:**
@@ -155,7 +155,7 @@ pyenv local 3.10.14
 
 **Problem:**
 ```
-❌ Required package 'mcp' not installed
+Required package 'mcp' not installed
 ```
 
 **Solution:**
@@ -181,10 +181,10 @@ pip install docrag-kit
 
 ### 2. Keep API Keys Secure
 
-- ✅ Store in `.env` file
-- ✅ Add `.env` to `.gitignore`
-- ❌ Never commit API keys to git
-- ❌ Never share `.env` file
+- Store in `.env` file
+- Add `.env` to `.gitignore`
+- Never commit API keys to git
+- Never share `.env` file
 
 ### 3. Regular Reindexing
 

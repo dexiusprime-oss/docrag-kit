@@ -65,7 +65,7 @@ The deployment process consists of three steps:
 2. Run tests with npm test
 3. Deploy using ./deploy.sh
 
-📚 Sources:
+Sources:
   • docs/DEPLOYMENT.md
   • README.md
 ```
@@ -101,26 +101,26 @@ result = search_docs(question="configuration", max_results=5)
 ## When to Use Each Tool
 
 ### Use `search_docs` when:
-- ✅ Looking for specific code/config examples
-- ✅ Need exact quotes from documentation
-- ✅ Want to read and interpret yourself
-- ✅ Speed is important
-- ✅ Want to save tokens
+- Looking for specific code/config examples
+- Need exact quotes from documentation
+- Want to read and interpret yourself
+- Speed is important
+- Want to save tokens
 
 ### Use `answer_question` when:
-- ✅ Need explanation, not just facts
-- ✅ Question requires synthesis from multiple sources
-- ✅ Want a direct answer
-- ✅ Need context and reasoning
+- Need explanation, not just facts
+- Question requires synthesis from multiple sources
+- Want a direct answer
+- Need context and reasoning
 
 ## Error Handling
 
 Both tools return clear error messages:
 
 ```
-❌ Question cannot be empty
-❌ Vector database not found. Run 'docrag index' first.
-❌ OpenAI API key not found. Add OPENAI_API_KEY to .env file.
+Question cannot be empty
+Vector database not found. Run 'docrag index' first.
+OpenAI API key not found. Add OPENAI_API_KEY to .env file.
 ```
 
 If you get an error:
@@ -132,10 +132,10 @@ If you get an error:
 
 ### Save Tokens
 ```python
-# ❌ Expensive: Always using answer_question
+# Expensive: Always using answer_question
 answer = answer_question(question="simple lookup")
 
-# ✅ Efficient: Use search_docs first
+# Efficient: Use search_docs first
 fragments = search_docs(question="simple lookup", max_results=2)
 # Only use answer_question if fragments aren't enough
 ```

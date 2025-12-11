@@ -20,10 +20,10 @@ Added new `answer_question` MCP tool and enhanced `search_docs` to better serve 
 
 ## Key Benefits
 
-✅ **60-70% faster** for simple lookups (use `search_docs`)
-✅ **50-80% token savings** (agents can choose based on needs)
-✅ **Better context** (fragments show exact documentation text)
-✅ **Flexibility** (combine both tools for best results)
+**60-70% faster** for simple lookups (use `search_docs`)
+**50-80% token savings** (agents can choose based on needs)
+**Better context** (fragments show exact documentation text)
+**Flexibility** (combine both tools for best results)
 
 ## Quick Usage
 
@@ -69,8 +69,8 @@ Need explanation? → answer_question (slow, uses tokens)
 
 ## Testing
 
-✅ Syntax validation passed
-✅ Type checking passed
+Syntax validation passed
+Type checking passed
 ⏳ Manual testing recommended after installation
 
 ## Next Steps

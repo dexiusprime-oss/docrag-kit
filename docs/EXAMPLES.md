@@ -38,7 +38,7 @@ docrag index
 
 **Output:**
 ```
-📚 Indexing documents...
+Indexing documents...
 ✓ Found 45 files to index
 ✓ Processing documents...
 ✓ Creating embeddings...
@@ -49,7 +49,7 @@ Statistics:
 - Chunks created: 234
 - Total characters: 89,432
 
-✅ Indexing complete!
+Indexing complete!
 ```
 
 ### Example Questions

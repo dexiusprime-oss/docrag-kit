@@ -2,7 +2,7 @@
 
 Complete documentation for DocRAG Kit - Universal RAG system for project documentation.
 
-## 📚 Documentation Index
+## Documentation Index
 
 ### Getting Started
 
@@ -62,7 +62,7 @@ Complete documentation for DocRAG Kit - Universal RAG system for project documen
    - Team collaboration guidelines
    - Security checklist
 
-## 🚀 Quick Navigation
+## Quick Navigation
 
 ### I want to...
 
@@ -152,7 +152,7 @@ Complete documentation for DocRAG Kit - Universal RAG system for project documen
 - [README.md](README.md) - Security section
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Preventive Measures section
 
-## 💡 Tips
+## Tips
 
 ### Best Practices
 - Read [SECURITY.md](SECURITY.md) before starting (protect your API keys!)
@@ -167,7 +167,7 @@ Complete documentation for DocRAG Kit - Universal RAG system for project documen
 3. Review relevant documentation section
 4. Open new issue with details from [TROUBLESHOOTING.md](TROUBLESHOOTING.md) "Getting Help" section
 
-## 📝 Documentation Maintenance
+## Documentation Maintenance
 
 This documentation is maintained alongside the DocRAG Kit codebase. If you find errors or have suggestions:
 

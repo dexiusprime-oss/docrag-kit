@@ -21,7 +21,7 @@ cd ~/Documents/docrag-kit
 ## Development Status
 
 ### Completed Tasks
-- ✅ Task 1: Setup project structure and packaging
+- Task 1: Setup project structure and packaging
   - Python package structure with pyproject.toml
   - CLI framework with Click (5 commands)
   - Dependencies configured

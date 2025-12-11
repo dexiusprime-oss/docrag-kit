@@ -174,7 +174,7 @@ docrag --version
 
 **Symptoms**:
 ```
-❌ Error: API key not found
+Error: API key not found
    Please add your API key to .env file
 ```
 
@@ -213,7 +213,7 @@ docrag --version
 
 **Symptoms**:
 ```
-❌ Error: Invalid API key
+Error: Invalid API key
    Authentication failed with OpenAI
 ```
 
@@ -226,8 +226,8 @@ docrag --version
 2. **Check for extra spaces**:
    ```bash
    # Remove any whitespace
-   OPENAI_API_KEY=sk-abc123  # ✅ Good
-   OPENAI_API_KEY= sk-abc123 # ❌ Bad (space before key)
+   OPENAI_API_KEY=sk-abc123  # Good
+   OPENAI_API_KEY= sk-abc123 # Bad (space before key)
    ```
 
 3. **Generate new key**:
@@ -247,7 +247,7 @@ docrag --version
 
 **Symptoms**:
 ```
-❌ Error: Rate limit exceeded
+Error: Rate limit exceeded
    You have exceeded your API quota
 ```
 
@@ -283,7 +283,7 @@ docrag --version
 
 **Symptoms**:
 ```
-📚 Indexing documents...
+Indexing documents...
 ✓ Found 0 files to index
 ```
 
@@ -310,8 +310,8 @@ docrag --version
    # Make sure patterns aren't too broad
    indexing:
      exclude_patterns:
-       - "node_modules/"  # ✅ Specific
-       - "*/"             # ❌ Too broad
+       - "node_modules/"  # Specific
+       - "*/"             # Too broad
    ```
 
 4. **List files manually**:
@@ -326,7 +326,7 @@ docrag --version
 
 **Symptoms**:
 ```
-⚠️  Warning: Failed to read file: docs/legacy.txt
+Warning: Failed to read file: docs/legacy.txt
    UnicodeDecodeError: 'utf-8' codec can't decode byte
 ```
 
@@ -362,7 +362,7 @@ docrag --version
 
 **Symptoms**:
 ```
-❌ Error: No space left on device
+Error: No space left on device
    Failed to create vector database
 ```
 
@@ -462,7 +462,7 @@ MemoryError: Unable to allocate array
        "my-docs": {
          "command": "python",
          "args": [
-           "/Users/username/project/.docrag/mcp_server.py"  // ✅ Absolute
+           "/Users/username/project/.docrag/mcp_server.py"  // Absolute
          ]
        }
      }
@@ -522,7 +522,7 @@ MCP server failed to start
 
 **Symptoms**:
 ```
-❌ Error: Vector database not found
+Error: Vector database not found
    Please run 'docrag index' first
 ```
 
@@ -708,7 +708,7 @@ MCP server failed to start
 
 **Error**:
 ```
-❌ Error: Configuration file not found: .docrag/config.yaml
+Error: Configuration file not found: .docrag/config.yaml
    Run 'docrag init' to create configuration
 ```
 
@@ -721,7 +721,7 @@ docrag init
 
 **Error**:
 ```
-⚠️  Warning: Chunk size 50 is too small
+Warning: Chunk size 50 is too small
    Recommended range: 100-5000
 ```
 
@@ -736,7 +736,7 @@ chunking:
 
 **Error**:
 ```
-❌ Error: Invalid provider: anthropic
+Error: Invalid provider: anthropic
    Supported providers: openai, gemini
 ```
 
@@ -751,7 +751,7 @@ llm:
 
 **Error**:
 ```
-❌ Error: top_k must be >= 1
+Error: top_k must be >= 1
    Current value: 0
 ```
 
@@ -766,7 +766,7 @@ retrieval:
 
 **Error**:
 ```
-❌ Error: Failed to create embeddings
+Error: Failed to create embeddings
    OpenAI API error: Incorrect API key provided
 ```
 
@@ -779,7 +779,7 @@ retrieval:
 
 **Error**:
 ```
-❌ Error: ChromaDB initialization failed
+Error: ChromaDB initialization failed
    sqlite3.OperationalError: database is locked
 ```
 
@@ -860,13 +860,13 @@ Create a new issue with:
 
 ### Best Practices
 
-1. ✅ Use version control for config.yaml
-2. ✅ Keep .env gitignored
-3. ✅ Document your setup in README
-4. ✅ Test after configuration changes
-5. ✅ Monitor costs and usage
-6. ✅ Update documentation regularly
-7. ✅ Reindex after major changes
-8. ✅ Use descriptive server names
-9. ✅ Keep dependencies updated
-10. ✅ Backup important configurations
+1. Use version control for config.yaml
+2. Keep .env gitignored
+3. Document your setup in README
+4. Test after configuration changes
+5. Monitor costs and usage
+6. Update documentation regularly
+7. Reindex after major changes
+8. Use descriptive server names
+9. Keep dependencies updated
+10. Backup important configurations

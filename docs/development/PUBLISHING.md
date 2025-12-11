@@ -72,10 +72,10 @@ git status | grep ".env"  # Should show nothing
 ```
 
 All checks should pass:
-- ✅ 65 tests passing
-- ✅ Package metadata correct
-- ✅ No secrets in code
-- ✅ .env files not tracked
+- 65 tests passing
+- Package metadata correct
+- No secrets in code
+- .env files not tracked
 
 ## Step 4: Publish to PyPI
 
@@ -95,10 +95,10 @@ git push origin v0.1.0
 ```
 
 GitHub Actions will:
-1. ✅ Run all tests
-2. ✅ Build the package
-3. ✅ Publish to PyPI
-4. ✅ Create a GitHub Release
+1. Run all tests
+2. Build the package
+3. Publish to PyPI
+4. Create a GitHub Release
 
 Monitor the progress:
 - Go to: https://github.com/dexiusprime-oss/docrag-kit/actions
@@ -245,12 +245,12 @@ python -m build
 
 ## Security Notes
 
-⚠️ **NEVER commit your PyPI token to git!**
+**NEVER commit your PyPI token to git!**
 
-- ✅ Store in GitHub Secrets
-- ✅ Store in environment variables locally
-- ❌ Never in code
-- ❌ Never in configuration files
+- Store in GitHub Secrets
+- Store in environment variables locally
+- Never in code
+- Never in configuration files
 
 ## Quick Reference
 

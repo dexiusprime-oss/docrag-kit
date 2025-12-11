@@ -617,13 +617,13 @@ from langchain.schema import Document
 "Error: ENOENT"
 
 # Good
-"❌ Configuration file not found: .docrag/config.yaml
+"Configuration file not found: .docrag/config.yaml
    Run 'docrag init' to create configuration"
 ```
 
 **Error Message Format:**
 ```
-❌ Error: <Short description>
+Error: <Short description>
    <Detailed explanation>
    <Suggested action>
 ```
@@ -954,15 +954,15 @@ Before creating `.env`:
 **4. Security Warnings**
 Display after `docrag init`:
 ```
-✅ Configuration complete!
+Configuration complete!
 
-🔒 SECURITY REMINDER:
+SECURITY REMINDER:
    • Your API keys are stored in .env
    • This file is gitignored and will NOT be committed
    • Never share your .env file or commit it to git
    • Use .env.example as a template for other users
 
-📝 Next steps:
+Next steps:
    1. Run: docrag index
    2. Run: docrag mcp-config
 ```
@@ -970,7 +970,7 @@ Display after `docrag init`:
 **5. Documentation Security Section**
 Include in README.md:
 ```markdown
-## ⚠️ Security Warning
+## Security Warning
 
 **NEVER commit your `.env` file to git!**
 

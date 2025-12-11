@@ -8,12 +8,12 @@ Universal RAG (Retrieval-Augmented Generation) system for project documentation.
 
 ## Features
 
-- 🚀 **Quick Setup** - Initialize RAG system in any project with one command
-- 📚 **Universal** - Works with any documentation (Markdown, code, configs)
-- 🔌 **MCP Integration** - Seamless integration with Kiro AI via Model Context Protocol
-- 🌍 **Multilingual** - Supports Russian and English questions and answers
-- 🎯 **Project Templates** - Predefined templates for Symfony, iOS, and general projects
-- 🔒 **Secure** - API keys stored safely in .env files
+- **Quick Setup** - Initialize RAG system in any project with one command
+- **Universal** - Works with any documentation (Markdown, code, configs)
+- **MCP Integration** - Seamless integration with Kiro AI via Model Context Protocol
+- **Multilingual** - Supports Russian and English questions and answers
+- **Project Templates** - Predefined templates for Symfony, iOS, and general projects
+- **Secure** - API keys stored safely in .env files
 
 ## Installation
 
@@ -231,7 +231,7 @@ Provide your own custom prompt template.
 
 ## Security
 
-⚠️ **CRITICAL WARNING**: Never commit your `.env` file to git!
+**CRITICAL WARNING**: Never commit your `.env` file to git!
 
 Your `.env` file contains sensitive API keys that provide access to paid services. If exposed, they can be used by others, potentially costing you money or compromising your accounts.
 
@@ -367,7 +367,7 @@ Returns comprehensive AI-generated answer synthesized from documentation. Best f
 Question: "How do I configure the database?"
 Response: "To configure the database, edit the .env file and set DB_HOST, DB_PORT, and DB_NAME..."
 
-📚 Sources:
+Sources:
   • docs/config.md
   • README.md
 ```

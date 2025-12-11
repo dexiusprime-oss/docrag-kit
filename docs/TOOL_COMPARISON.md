@@ -12,8 +12,8 @@ Visual guide to help choose the right tool for your needs.
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │
 │  │ search_docs  │  │answer_question│ │list_indexed_ │    │
 │  │              │  │              │  │    docs      │    │
-│  │   Fast 🚀    │  │Comprehensive │  │   Browse     │    │
-│  │   Free 💰    │  │  Explained   │  │   Files      │    │
+│  │   Fast │  │Comprehensive │  │   Browse     │    │
+│  │   Free │  │  Explained   │  │   Files      │    │
 │  │  Fragments   │  │  Synthesized │  │   List       │    │
 │  └──────────────┘  └──────────────┘  └──────────────┘    │
 │                                                             │
@@ -215,7 +215,7 @@ The deployment process consists of three main steps:
 The CI/CD pipeline automates this process on every merge to 
 the main branch.
 
-📚 Sources:
+Sources:
   • docs/deployment.md
   • README.md
   • docs/ci-cd.md
@@ -223,7 +223,7 @@ the main branch.
 
 ## Best Practices
 
-### ✅ Do
+### Do
 
 ```
 ✓ Start with search_docs for quick lookups
@@ -234,7 +234,7 @@ the main branch.
 ✓ Read fragments yourself when possible
 ```
 
-### ❌ Don't
+### Don't
 
 ```
 ✗ Always use answer_question (wastes tokens)
@@ -249,11 +249,11 @@ the main branch.
 ### Example 1: Configuration Lookup
 
 ```
-❌ Inefficient:
+Inefficient:
 answer_question("What is the database port?")
 → 4s, 200 tokens, $0.0002
 
-✅ Efficient:
+Efficient:
 search_docs("database port", max_results=1)
 → 1s, 0 tokens, $0
 → Result: "DB_PORT=5432"
@@ -262,11 +262,11 @@ search_docs("database port", max_results=1)
 ### Example 2: Architecture Understanding
 
 ```
-❌ Insufficient:
+Insufficient:
 search_docs("architecture", max_results=3)
 → Returns fragments but no synthesis
 
-✅ Better:
+Better:
 answer_question("Explain the system architecture")
 → Returns synthesized explanation with context
 ```
@@ -274,7 +274,7 @@ answer_question("Explain the system architecture")
 ### Example 3: Troubleshooting
 
 ```
-✅ Progressive approach:
+Progressive approach:
 1. search_docs("connection error", max_results=3)
    → Quick check for known issues
    
@@ -290,7 +290,7 @@ answer_question("Explain the system architecture")
 │ Aspect       │ search_docs │ answer_q     │list_indexed │
 ├──────────────┼─────────────┼──────────────┼─────────────┤
 │ Speed        │ ⚡⚡⚡       │ ⚡           │ ⚡⚡⚡      │
-│ Cost         │ 💰 Free     │ 💰💰💰      │ 💰 Free    │
+│ Cost         │ Free     │ │ Free    │
 │ Detail       │ ⭐⭐        │ ⭐⭐⭐⭐⭐  │ ⭐         │
 │ Accuracy     │ ⭐⭐⭐⭐⭐  │ ⭐⭐⭐⭐    │ ⭐⭐⭐⭐⭐ │
 │ Context      │ ⭐⭐        │ ⭐⭐⭐⭐⭐  │ ⭐         │
@@ -303,11 +303,11 @@ answer_question("Explain the system architecture")
 **Default strategy**: Start with `search_docs`, escalate to `answer_question` only when needed.
 
 This approach:
-- ✅ Minimizes token usage
-- ✅ Maximizes speed
-- ✅ Provides exact documentation text
-- ✅ Allows you to interpret and decide
-- ✅ Falls back to AI synthesis when needed
+- Minimizes token usage
+- Maximizes speed
+- Provides exact documentation text
+- Allows you to interpret and decide
+- Falls back to AI synthesis when needed
 
 ---
 
