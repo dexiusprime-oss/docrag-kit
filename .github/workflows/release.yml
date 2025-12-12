@@ -30,9 +30,9 @@ jobs:
     - name: Verify all tests pass
       run: |
         if [ $? -eq 0 ]; then
-          echo "✅ All tests passed"
+          echo "SUCCESS: All tests passed"
         else
-          echo "❌ Tests failed - cannot release"
+          echo "ERROR: Tests failed - cannot release"
           exit 1
         fi
 

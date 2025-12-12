@@ -89,17 +89,17 @@ jobs:
       run: |
         # Check for common secret patterns
         if grep -r -E "(sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{36})" src/ tests/ --exclude-dir=.git; then
-          echo "❌ Potential secrets found in code!"
+          echo "ERROR: Potential secrets found in code!"
           exit 1
         else
-          echo "✅ No secrets detected"
+          echo "SUCCESS: No secrets detected"
         fi
     
     - name: Verify .env is gitignored
       run: |
         if grep -q "^\.env$" .gitignore; then
-          echo "✅ .env is properly gitignored"
+          echo "SUCCESS: .env is properly gitignored"
         else
-          echo "❌ .env is not in .gitignore!"
+          echo "ERROR: .env is not in .gitignore!"
           exit 1
         fi

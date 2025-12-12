@@ -17,7 +17,7 @@ jobs:
       run: |
         PR_TITLE="${{ github.event.pull_request.title }}"
         if [[ ! "$PR_TITLE" =~ ^(feat|fix|docs|style|refactor|test|chore|perf):.+ ]]; then
-          echo "❌ PR title must follow conventional commits format"
+          echo "ERROR: PR title must follow conventional commits format"
           echo "Examples: feat: add new feature, fix: resolve bug, docs: update readme"
           exit 1
         fi
@@ -25,15 +25,15 @@ jobs:
     - name: Check for secrets in diff
       run: |
         git diff origin/main...HEAD | grep -E "(sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{36}|OPENAI_API_KEY=.{20,})" && {
-          echo "❌ Potential secrets found in changes!"
+          echo "ERROR: Potential secrets found in changes!"
           exit 1
-        } || echo "✅ No secrets detected in diff"
+        } || echo "SUCCESS: No secrets detected in diff"
     
     - name: Check file sizes
       run: |
         # Check for large files (>1MB)
         find . -type f -size +1M -not -path "./.git/*" | while read file; do
-          echo "⚠️  Large file detected: $file"
+          echo "WARNING: Large file detected: $file"
         done
 
   test:
@@ -70,7 +70,7 @@ jobs:
       if: always()
       with:
         script: |
-          const output = `#### Test Results 🧪
+          const output = `#### Test Results
           
           Tests have been run on this PR.
           
