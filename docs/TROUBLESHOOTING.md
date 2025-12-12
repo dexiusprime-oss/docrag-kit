@@ -13,6 +13,43 @@ This guide helps you diagnose and fix common issues with DocRAG Kit.
 
 ## Installation Issues
 
+### Python Version Error
+
+**Problem**: Installation fails with Python version error
+
+**Symptoms**:
+```
+ERROR: Package 'docrag-kit' requires a different Python: 3.9.6 not in '>=3.10'
+```
+
+**Root Cause**: DocRAG Kit requires Python 3.10+ due to the MCP (Model Context Protocol) library dependency.
+
+**Solutions**:
+
+1. **Install Python 3.10 or newer**:
+   ```bash
+   # Using pyenv (recommended)
+   pyenv install 3.11.0
+   pyenv local 3.11.0
+   
+   # Or download from python.org
+   # https://www.python.org/downloads/
+   ```
+
+2. **Check your Python version**:
+   ```bash
+   python --version
+   # Should show 3.10.x or higher
+   ```
+
+3. **Use the correct Python executable**:
+   ```bash
+   # If you have multiple Python versions
+   python3.10 -m pip install docrag-kit
+   # or
+   python3.11 -m pip install docrag-kit
+   ```
+
 ### Dependency Conflict with onnxruntime or pulsar-client
 
 **Problem**: Installation fails with dependency resolution errors
@@ -25,11 +62,11 @@ onnxruntime
 pulsar-client
 ```
 
-**Root Cause**: ChromaDB requires `onnxruntime` and `pulsar-client` which may not be available for all platforms (especially ARM-based systems like Apple Silicon M1/M2).
+**Root Cause**: DocRAG Kit requires Python 3.10+ due to the MCP library dependency. ChromaDB also requires `onnxruntime` and `pulsar-client` which may not be available for all platforms (especially ARM-based systems like Apple Silicon M1/M2).
 
 **Solutions**:
 
-1. **Use Python 3.10 or 3.11** (recommended):
+1. **Use Python 3.10 or 3.11** (required):
    ```bash
    python3.11 -m venv venv
    source venv/bin/activate

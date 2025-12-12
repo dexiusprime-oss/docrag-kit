@@ -19,7 +19,7 @@ Universal RAG (Retrieval-Augmented Generation) system for project documentation.
 
 ### Requirements
 
-- Python >= 3.10 (3.11 recommended)
+- Python >= 3.10 (required for MCP library)
 - pip >= 21.0
 
 ### From PyPI
@@ -41,8 +41,8 @@ pip install -e .
 If you encounter dependency conflicts with `onnxruntime` or `pulsar-client`:
 
 ```bash
-# Use Python 3.11
-python3.11 -m venv venv
+# Use Python 3.10+
+python3.10 -m venv venv
 source venv/bin/activate
 pip install --upgrade pip
 pip install docrag-kit

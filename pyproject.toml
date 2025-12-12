@@ -7,7 +7,7 @@ name = "docrag-kit"
 version = "0.1.5"
 description = "Universal RAG system for project documentation"
 readme = "README.md"
-requires-python = ">=3.10,<3.13"
+requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
     {name = "DocRAG Kit Contributors"}
