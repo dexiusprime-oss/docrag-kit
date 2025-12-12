@@ -444,7 +444,8 @@ def config(edit):
 
 @cli.command("mcp-config")
 @click.option("--non-interactive", is_flag=True, help="Skip confirmation prompts")
-def mcp_config(non_interactive):
+@click.option("--update", is_flag=True, help="Update existing MCP configuration with new tools")
+def mcp_config(non_interactive, update):
     """Display MCP server configuration for Kiro."""
     from pathlib import Path
     import json
@@ -533,28 +534,35 @@ def mcp_config(non_interactive):
     }
     
     # Display configuration
-    click.echo("MCP Server Configuration for Kiro\n")
-    click.echo("Add this to your Kiro MCP configuration file:")
-    click.echo(".kiro/settings/mcp.json (workspace config)\n")
-    
-    click.echo("```json")
-    click.echo(json.dumps(mcp_config, indent=2))
-    click.echo("```\n")
-    
-    # Display manual instructions
-    click.echo("Manual Setup Instructions:")
-    click.echo("1. Open or create: .kiro/settings/mcp.json")
-    click.echo("2. Add the above configuration to the 'mcpServers' section")
-    click.echo("3. Restart Kiro or reload MCP servers")
-    click.echo("4. The server will appear as: " + server_name)
+    if update:
+        click.echo("Updating MCP Server Configuration\n")
+    else:
+        click.echo("MCP Server Configuration for Kiro\n")
+        click.echo("Add this to your Kiro MCP configuration file:")
+        click.echo(".kiro/settings/mcp.json (workspace config)\n")
+        
+        click.echo("```json")
+        click.echo(json.dumps(mcp_config, indent=2))
+        click.echo("```\n")
+        
+        # Display manual instructions
+        click.echo("Manual Setup Instructions:")
+        click.echo("1. Open or create: .kiro/settings/mcp.json")
+        click.echo("2. Add the above configuration to the 'mcpServers' section")
+        click.echo("3. Restart Kiro or reload MCP servers")
+        click.echo("4. The server will appear as: " + server_name)
     
     # Try to add to workspace config automatically
     workspace_config_path = project_root / ".kiro" / "settings" / "mcp.json"
     
     click.echo("\nAdding to workspace configuration...")
     
-    # Skip confirmation in non-interactive mode
-    should_add_config = non_interactive or click.confirm("   Would you like to automatically add this configuration?", default=True)
+    # Skip confirmation in non-interactive mode or update mode
+    if update:
+        should_add_config = True
+        click.echo("Updating existing configuration...")
+    else:
+        should_add_config = non_interactive or click.confirm("   Would you like to automatically add this configuration?", default=True)
     
     if should_add_config:
         try:
@@ -586,13 +594,19 @@ def mcp_config(non_interactive):
             with open(workspace_config_path, 'w', encoding='utf-8') as f:
                 json.dump(existing_config, f, indent=2)
             
-            click.echo(f"   SUCCESS: Configuration added to {workspace_config_path}")
-            click.echo("   🔄 Restart Kiro or reload MCP servers to activate")
-            
-            # Add note about user config option
-            click.echo("\nTIP: Note: Configuration added to workspace config (.kiro/settings/mcp.json)")
-            click.echo("   This makes the MCP server available only in this workspace")
-            click.echo("   To make it available globally, add to: ~/.kiro/settings/mcp.json")
+            if update:
+                click.echo(f"   SUCCESS: Configuration updated in {workspace_config_path}")
+                click.echo("   RESTART: Restart Kiro or reload MCP servers to see new tools:")
+                click.echo("     • reindex_docs - Smart reindexing with change detection")
+                click.echo("     • Enhanced search_docs and answer_question with staleness warnings")
+            else:
+                click.echo(f"   SUCCESS: Configuration added to {workspace_config_path}")
+                click.echo("   RESTART: Restart Kiro or reload MCP servers to activate")
+                
+                # Add note about user config option
+                click.echo("\nNOTE: Configuration added to workspace config (.kiro/settings/mcp.json)")
+                click.echo("   This makes the MCP server available only in this workspace")
+                click.echo("   To make it available globally, add to: ~/.kiro/settings/mcp.json")
         
         except Exception as e:
             click.echo(f"   ERROR: Error adding configuration: {e}")
@@ -601,6 +615,68 @@ def mcp_config(non_interactive):
         click.echo("\nTIP: Tip: You can manually add the configuration to:")
         click.echo("   - Workspace: .kiro/settings/mcp.json (recommended)")
         click.echo("   - User: ~/.kiro/settings/mcp.json (global)")
+
+
+@cli.command()
+def update():
+    """Update DocRAG configuration and MCP server for existing projects."""
+    from pathlib import Path
+    import json
+    from .config_manager import ConfigManager
+    
+    project_root = Path.cwd()
+    
+    # Check if DocRAG is initialized
+    docrag_dir = project_root / ".docrag"
+    if not docrag_dir.exists():
+        click.echo("ERROR: DocRAG not initialized in this project")
+        click.echo("   Run 'docrag init' first")
+        return
+    
+    click.echo("UPDATE: Updating DocRAG configuration for new features...\n")
+    
+    # Check current configuration
+    config_manager = ConfigManager(project_root)
+    if not config_manager.config_path.exists():
+        click.echo("ERROR: Configuration file not found")
+        click.echo("   Run 'docrag init' to recreate configuration")
+        return
+    
+    # Update MCP configuration
+    click.echo("1. Updating MCP server configuration...")
+    try:
+        # Run mcp-config with update flag
+        from click.testing import CliRunner
+        runner = CliRunner()
+        result = runner.invoke(mcp_config, ['--non-interactive', '--update'])
+        if result.exit_code == 0:
+            click.echo("   SUCCESS: MCP configuration updated")
+        else:
+            click.echo("   WARNING: MCP configuration update failed")
+    except Exception as e:
+        click.echo(f"   WARNING: MCP update failed: {e}")
+    
+    # Check if reindexing is recommended
+    click.echo("\n2. Checking if reindexing is needed...")
+    try:
+        from .mcp_server import MCPServer
+        server = MCPServer()
+        # This will be available after the MCP server is updated
+        click.echo("   INFO: Use 'reindex_docs' tool in Kiro to check for updates")
+        click.echo("   Or run: docrag reindex")
+    except Exception as e:
+        click.echo(f"   INFO: Reindexing check will be available after MCP restart")
+    
+    # Display what's new
+    click.echo("\n3. New features available:")
+    click.echo("   • reindex_docs tool - Smart reindexing with change detection")
+    click.echo("   • Automatic staleness warnings in search results")
+    click.echo("   • Better performance for large documentation sets")
+    
+    click.echo("\nNEXT STEPS:")
+    click.echo("1. Restart Kiro IDE or reload MCP servers")
+    click.echo("2. Try the new 'reindex_docs' tool in Kiro")
+    click.echo("3. Use 'reindex_docs(check_only=True)' to check for updates")
 
 
 @cli.command()

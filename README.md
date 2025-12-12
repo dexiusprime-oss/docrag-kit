@@ -181,6 +181,9 @@ Use this command if `answer_question` tool returns only sources without AI-gener
 ### `docrag --version`
 Display version information.
 
+### `docrag update`
+Update DocRAG configuration and MCP server for existing projects. Use this after upgrading the package to get new features.
+
 ### `docrag --help`
 Display help information.
 
@@ -328,7 +331,7 @@ Before pushing to git, verify:
 
 ## MCP Integration
 
-DocRAG Kit provides three MCP tools for Kiro AI:
+DocRAG Kit provides four MCP tools for Kiro AI:
 
 ### `search_docs` - Fast Fragment Search
 Returns relevant document fragments with source files. Best for quick lookups.
@@ -377,9 +380,35 @@ List all indexed documents in the project.
 
 **Returns:** List of all source files in the vector database.
 
+### `reindex_docs` - Smart Reindexing
+Automatically detects document changes and performs intelligent reindexing. Best for keeping documentation up-to-date.
+
+**Parameters:**
+- `force` (boolean, optional): Force full reindexing even if no changes detected (default: false)
+- `check_only` (boolean, optional): Only check if reindexing is needed without performing it (default: false)
+
+**Performance:** Variable - fast check (~1s), full reindex depends on document count
+
+**Example:**
+```
+# Check if reindexing is needed
+reindex_docs(check_only=True)
+Response: "Changes detected in 3 file(s): docs/api.md, README.md, src/config.py"
+
+# Perform smart reindexing
+reindex_docs()
+Response: "Reindexing completed! Files processed: 15, Chunks created: 127"
+
+# Force full reindexing
+reindex_docs(force=True)
+Response: "Force reindexing completed! Reason: Force reindexing requested"
+```
+
 **Tool Selection Guide:**
 - Use `search_docs` for quick lookups (faster, free)
 - Use `answer_question` for complex questions (slower, uses tokens)
+- Use `reindex_docs` when documents have been updated
+- Use `list_indexed_docs` to see what's currently indexed
 - See [docs/AGENT_QUICK_START.md](docs/AGENT_QUICK_START.md) for detailed guide
 
 ## Documentation
