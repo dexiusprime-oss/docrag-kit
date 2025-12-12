@@ -155,6 +155,28 @@ class MCPServer:
                         "properties": {},
                         "required": []
                     }
+                ),
+                types.Tool(
+                    name="reindex_docs",
+                    description="Reindex project documentation when documents have been updated. "
+                                "Automatically detects changes and performs smart reindexing. "
+                                "Переиндексировать документацию при обновлении файлов с автоматическим обнаружением изменений.",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "force": {
+                                "type": "boolean",
+                                "description": "Force full reindexing even if no changes detected. Default: false",
+                                "default": False
+                            },
+                            "check_only": {
+                                "type": "boolean", 
+                                "description": "Only check if reindexing is needed without performing it. Default: false",
+                                "default": False
+                            }
+                        },
+                        "required": []
+                    }
                 )
             ]
         
@@ -178,6 +200,13 @@ class MCPServer:
                 
                 elif name == "list_indexed_docs":
                     result = await self.handle_list_docs()
+                    return [types.TextContent(type="text", text=result)]
+                
+                elif name == "reindex_docs":
+                    result = await self.handle_reindex_docs(
+                        force=arguments.get("force", False),
+                        check_only=arguments.get("check_only", False)
+                    )
                     return [types.TextContent(type="text", text=result)]
                 
                 else:
@@ -294,6 +323,9 @@ class MCPServer:
         # Validate max_results
         max_results = max(1, min(10, max_results))
         
+        # Check if reindexing might be needed (non-blocking)
+        staleness_warning = await self._check_database_staleness()
+        
         # Get retriever
         try:
             _, retriever = self.get_qa_chain()
@@ -306,7 +338,7 @@ class MCPServer:
             source_docs = retriever.invoke(question)
             
             if not source_docs:
-                return "📭 No relevant documents found for your query."
+                return "SEARCH: No relevant documents found for your query."
             
             # Limit results
             source_docs = source_docs[:max_results]
@@ -334,10 +366,15 @@ class MCPServer:
                 
                 # Format result
                 results.append(f"--- Result {idx} ---")
-                results.append(f"📄 Source: {source_file}")
+                results.append(f"SOURCE: {source_file}")
                 results.append(f"\n{content}\n")
             
-            return "\n".join(results)
+            # Add staleness warning if needed
+            final_result = "\n".join(results)
+            if staleness_warning:
+                final_result += staleness_warning
+            
+            return final_result
         
         except Exception as e:
             raise ValueError(f"ERROR: Search failed: {str(e)}")
@@ -358,6 +395,9 @@ class MCPServer:
         """
         if not question or not question.strip():
             raise ValueError("ERROR: Question cannot be empty")
+        
+        # Check if reindexing might be needed (non-blocking)
+        staleness_warning = await self._check_database_staleness()
         
         # Get QA chain and retriever
         chain, retriever = self.get_qa_chain()
@@ -390,6 +430,10 @@ class MCPServer:
                         sources_list = sorted(list(source_files))
                         answer += f"\n\nSOURCES: Sources:\n" + "\n".join(f"  • {s}" for s in sources_list)
             
+            # Add staleness warning if needed
+            if staleness_warning:
+                answer += staleness_warning
+            
             return answer
         
         except Exception as e:
@@ -409,7 +453,7 @@ class MCPServer:
             documents = self.vector_db.list_documents()
             
             if not documents:
-                return "📄 No documents indexed yet.\n   Run 'docrag index' to index your documentation."
+                return "DOCS: No documents indexed yet.\n   Run 'docrag index' to index your documentation."
             
             # Format document list
             doc_list = "\n".join(f"- {doc}" for doc in documents)
@@ -417,6 +461,182 @@ class MCPServer:
         
         except ValueError as e:
             raise ValueError(str(e))
+
+    async def handle_reindex_docs(self, force: bool = False, check_only: bool = False) -> str:
+        """
+        Handle reindex_docs tool call - smart reindexing with change detection.
+        
+        Args:
+            force: Force full reindexing even if no changes detected.
+            check_only: Only check if reindexing is needed without performing it.
+        
+        Returns:
+            Status message about reindexing operation.
+        
+        Raises:
+            ValueError: If configuration or database errors occur.
+        """
+        try:
+            from .document_processor import DocumentProcessor
+            import time
+            import os
+            
+            # Check if database exists
+            db_path = self.project_root / ".docrag" / "vectordb"
+            if not db_path.exists():
+                if check_only:
+                    return "REINDEX: Database not found - full indexing needed.\n   Run with force=false to create initial index."
+                
+                # No database exists, need initial indexing
+                return await self._perform_full_reindex("Initial indexing (no database found)")
+            
+            # Get database creation time
+            try:
+                db_created_time = os.path.getctime(db_path)
+            except:
+                db_created_time = 0
+            
+            # Scan for document changes
+            doc_processor = DocumentProcessor(self.config)
+            
+            # Get list of files that would be indexed
+            files_to_check = []
+            for directory in self.config.get('indexing', {}).get('directories', ['.']):
+                dir_path = self.project_root / directory
+                if dir_path.exists():
+                    extensions = self.config.get('indexing', {}).get('extensions', ['.md', '.txt'])
+                    for ext in extensions:
+                        files_to_check.extend(dir_path.rglob(f"*{ext}"))
+            
+            # Check for changes
+            changes_detected = False
+            newer_files = []
+            
+            for file_path in files_to_check:
+                try:
+                    file_mtime = os.path.getmtime(file_path)
+                    if file_mtime > db_created_time:
+                        changes_detected = True
+                        newer_files.append(str(file_path.relative_to(self.project_root)))
+                except:
+                    continue
+            
+            # Check if force reindexing requested
+            if force:
+                if check_only:
+                    return "REINDEX: Force reindexing requested - will rebuild entire database."
+                return await self._perform_full_reindex("Force reindexing requested")
+            
+            # Report findings
+            if check_only:
+                if changes_detected:
+                    files_list = "\n".join(f"  • {f}" for f in newer_files[:10])
+                    if len(newer_files) > 10:
+                        files_list += f"\n  • ... and {len(newer_files) - 10} more files"
+                    
+                    return f"REINDEX: Changes detected in {len(newer_files)} file(s):\n{files_list}\n\nReindexing recommended."
+                else:
+                    return "REINDEX: No changes detected - database is up to date."
+            
+            # Perform reindexing if changes detected
+            if changes_detected:
+                files_summary = f"{len(newer_files)} file(s) changed"
+                return await self._perform_full_reindex(f"Changes detected: {files_summary}")
+            else:
+                return "REINDEX: No changes detected - database is already up to date."
+        
+        except Exception as e:
+            raise ValueError(f"Reindexing failed: {str(e)}")
+
+    async def _perform_full_reindex(self, reason: str) -> str:
+        """
+        Perform full reindexing operation.
+        
+        Args:
+            reason: Reason for reindexing (for user feedback).
+        
+        Returns:
+            Status message about completed reindexing.
+        """
+        try:
+            from .document_processor import DocumentProcessor
+            
+            # Delete old database if it exists
+            db_path = self.project_root / ".docrag" / "vectordb"
+            if db_path.exists():
+                self.vector_db.delete_database()
+            
+            # Process documents
+            doc_processor = DocumentProcessor(self.config)
+            chunks, stats = doc_processor.process(self.project_root)
+            
+            if stats['files_found'] == 0:
+                return "REINDEX: No files found to index.\n   Check your configuration directories and extensions."
+            
+            # Create new database
+            self.vector_db.create_database(chunks, show_progress=False)
+            
+            # Reset cached QA chain to use new database
+            self._qa_chain = None
+            
+            # Return success message
+            return (f"REINDEX: Reindexing completed successfully!\n"
+                   f"   Reason: {reason}\n"
+                   f"   Files processed: {stats['files_processed']}\n"
+                   f"   Chunks created: {stats['chunks_created']}\n"
+                   f"   Total characters: {stats['total_characters']:,}")
+        
+        except Exception as e:
+            raise ValueError(f"Reindexing operation failed: {str(e)}")
+
+    async def _check_database_staleness(self) -> str:
+        """
+        Check if database might be stale (non-blocking check).
+        
+        Returns:
+            Warning message if database might be stale, empty string otherwise.
+        """
+        try:
+            import os
+            
+            # Check if database exists
+            db_path = self.project_root / ".docrag" / "vectordb"
+            if not db_path.exists():
+                return ""
+            
+            # Get database creation time
+            try:
+                db_created_time = os.path.getctime(db_path)
+            except:
+                return ""
+            
+            # Quick check for any recently modified files
+            recent_files = 0
+            for directory in self.config.get('indexing', {}).get('directories', ['.']):
+                dir_path = self.project_root / directory
+                if dir_path.exists():
+                    extensions = self.config.get('indexing', {}).get('extensions', ['.md', '.txt'])
+                    for ext in extensions:
+                        for file_path in dir_path.rglob(f"*{ext}"):
+                            try:
+                                if os.path.getmtime(file_path) > db_created_time:
+                                    recent_files += 1
+                                    if recent_files >= 3:  # Stop early for performance
+                                        break
+                            except:
+                                continue
+                        if recent_files >= 3:
+                            break
+                if recent_files >= 3:
+                    break
+            
+            if recent_files > 0:
+                return f"\nNOTE: {recent_files}+ files may have been updated since last indexing. Consider using 'reindex_docs' tool for latest content."
+            
+            return ""
+        
+        except:
+            return ""
 
     def _format_error(self, error: Exception) -> str:
         """

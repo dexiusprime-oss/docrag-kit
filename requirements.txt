@@ -1,24 +1,13 @@
 # DocRAG Kit Requirements
-# For installation: pip install -r requirements.txt
+# 
+# RECOMMENDED: Install directly from PyPI
+# pip install docrag-kit
+#
+# OR install from source:
+# pip install -e .
+#
+# This file is provided for reference only.
+# All dependencies are defined in pyproject.toml
 
-# Core dependencies
-click>=8.0.0
-pyyaml>=6.0
-python-dotenv>=1.0.0
-chardet>=5.0.0
-
-# LLM and embeddings
-langchain>=0.1.0
-langchain-community>=0.0.10
-langchain-openai>=0.0.5
-langchain-google-genai>=0.0.5
-tiktoken>=0.5.0
-
-# Vector database
-# Note: chromadb may have platform-specific issues
-# If installation fails, see docs/TROUBLESHOOTING.md
-chromadb>=0.4.22
-langchain-chroma>=0.1.0
-
-# MCP integration
-mcp>=0.9.0
+# If you need to install dependencies manually:
+-e .
