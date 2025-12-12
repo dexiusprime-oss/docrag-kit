@@ -14,7 +14,7 @@ class TestErrorFormatter:
             "Something went wrong",
             "Try again"
         )
-        assert "❌ Test Error: Something went wrong" in result
+        assert "ERROR: Test Error: Something went wrong" in result
         assert "Try again" in result
     
     def test_format_error_with_details(self):
@@ -25,7 +25,7 @@ class TestErrorFormatter:
             "Try again",
             "Additional info"
         )
-        assert "❌ Test Error: Something went wrong" in result
+        assert "ERROR: Test Error: Something went wrong" in result
         assert "Try again" in result
         assert "Additional info" in result
     
@@ -35,7 +35,7 @@ class TestErrorFormatter:
             "Invalid YAML",
             "Check your config.yaml syntax"
         )
-        assert "❌ Configuration Error" in result
+        assert "ERROR: Configuration Error" in result
         assert "Invalid YAML" in result
         assert "Check your config.yaml syntax" in result
     
@@ -45,7 +45,7 @@ class TestErrorFormatter:
             "openai",
             "API key not found"
         )
-        assert "❌ API Key Error" in result
+        assert "ERROR: API Key Error" in result
         assert "API key not found" in result
         assert "OPENAI_API_KEY" in result
         assert "https://platform.openai.com/api-keys" in result
@@ -56,7 +56,7 @@ class TestErrorFormatter:
             "gemini",
             "Invalid API key"
         )
-        assert "❌ API Key Error" in result
+        assert "ERROR: API Key Error" in result
         assert "Invalid API key" in result
         assert "GOOGLE_API_KEY" in result
         assert "https://makersuite.google.com/app/apikey" in result

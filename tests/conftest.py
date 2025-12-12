@@ -18,6 +18,74 @@ def sample_project(tmp_path):
     return create_sample_project(tmp_path)
 
 
+@pytest.fixture(scope="session")
+def test_demo_project():
+    """Create test-demo-project directory for integration tests."""
+    project_path = Path("test-demo-project")
+    
+    # Create directory if it doesn't exist
+    if not project_path.exists():
+        project_path.mkdir()
+        
+        # Create sample files
+        (project_path / "README.md").write_text("""# Test Demo Project
+
+This is a test project for DocRAG Kit testing.
+
+## Features
+
+- Test documentation
+- Sample content for indexing
+- Multiple file types
+
+## Installation
+
+```bash
+npm install
+```
+
+## Usage
+
+Run the application:
+
+```bash
+npm start
+```
+
+## Configuration
+
+Edit the config file to customize settings.""")
+        
+        (project_path / "docs.md").write_text("""# Documentation
+
+## API Reference
+
+### Authentication
+
+Use API keys for authentication.
+
+### Endpoints
+
+- GET /api/users
+- POST /api/users
+- PUT /api/users/:id
+- DELETE /api/users/:id
+
+## Examples
+
+```javascript
+const response = await fetch('/api/users');
+const users = await response.json();
+```""")
+    
+    yield project_path
+    
+    # Cleanup after all tests
+    import shutil
+    if project_path.exists():
+        shutil.rmtree(project_path, ignore_errors=True)
+
+
 @pytest.fixture
 def mock_openai_key(monkeypatch):
     """Mock OpenAI API key for testing."""

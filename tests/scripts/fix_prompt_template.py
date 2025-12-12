@@ -21,7 +21,7 @@ def fix_prompt_template(config_path: Path) -> bool:
         True if fixed successfully, False otherwise
     """
     if not config_path.exists():
-        print(f"❌ Configuration file not found: {config_path}")
+        print(f"ERROR: Configuration file not found: {config_path}")
         return False
     
     try:
@@ -31,7 +31,7 @@ def fix_prompt_template(config_path: Path) -> bool:
         
         # Check if prompt template exists
         if 'prompt' not in config or 'template' not in config['prompt']:
-            print("❌ No prompt template found in configuration")
+            print("ERROR: No prompt template found in configuration")
             return False
         
         current_template = config['prompt']['template']
@@ -111,7 +111,7 @@ Answer:"""
         return True
         
     except Exception as e:
-        print(f"❌ Error fixing prompt template: {e}")
+        print(f"ERROR: Error fixing prompt template: {e}")
         import traceback
         traceback.print_exc()
         return False

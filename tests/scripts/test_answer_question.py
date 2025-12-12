@@ -3,14 +3,16 @@
 
 import asyncio
 import sys
+import pytest
 from pathlib import Path
 
 # Add src to path
-sys.path.insert(0, str(Path(__file__).parent / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from docrag.mcp_server import MCPServer
 
 
+@pytest.mark.asyncio
 async def test_answer_question():
     """Test the answer_question functionality."""
     
@@ -77,7 +79,7 @@ async def test_answer_question():
                 print("  ⚠️  WARNING: No sources section found!")
         
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"ERROR: Error: {e}")
         import traceback
         traceback.print_exc()
 

@@ -37,9 +37,8 @@ docrag config
 
 ### `docrag mcp-config`
 ```bash
-# Interactive command - asks for confirmation before adding config
-# Use with caution in automated contexts
-docrag mcp-config
+# Use --non-interactive flag to skip confirmation prompts
+docrag mcp-config --non-interactive
 
 # Note: This command now adds MCP config to workspace (.kiro/settings/mcp.json)
 # instead of user config (~/.kiro/settings/mcp.json)
@@ -48,6 +47,7 @@ docrag mcp-config
 ## Summary
 
 - **Always add `--non-interactive` to `docrag init`**
+- **Always add `--non-interactive` to `docrag mcp-config`**
 - **`docrag index` - no flags needed, automatically overwrites**
 - **`docrag reindex` - no flags needed, automatically rebuilds**
 - **Never use `docrag config --edit` in automated contexts**

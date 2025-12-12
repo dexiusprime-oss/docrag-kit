@@ -15,16 +15,17 @@ def test_index_no_prompt():
     vectordb_path = test_dir / ".docrag" / "vectordb"
     
     if not vectordb_path.exists():
-        print("⚠️  Vector database doesn't exist yet")
+        print("WARNING: Vector database doesn't exist yet")
         print("   This test requires an existing database")
-        return False
+        # Skip test if no database exists
+        return
     
-    print("✅ Vector database exists")
+    print("SUCCESS: Vector database exists")
     print(f"   Path: {vectordb_path}")
     
     # Run index command without any input
     # If it prompts, it will hang waiting for input
-    print("\n🧪 Testing index command (should not prompt)...")
+    print("\nTesting index command (should not prompt)...")
     
     try:
         result = subprocess.run(
@@ -39,27 +40,23 @@ def test_index_no_prompt():
         output = result.stdout + result.stderr
         
         # Check if it's waiting for confirmation
-        if "Overwrite existing database?" in output:
-            print("❌ FAILED: Command is still prompting for confirmation")
-            print(f"\nOutput:\n{output}")
-            return False
+        assert "Overwrite existing database?" not in output, f"Command is still prompting for confirmation. Output: {output}"
         
-        # Check if it mentions overwriting
-        if "overwriting" in output.lower() or "vector database already exists" in output.lower():
-            print("✅ PASSED: Command mentions existing database but doesn't prompt")
-            print(f"\nOutput snippet:\n{output[:500]}")
-            return True
+        # Check if it mentions overwriting or completes successfully
+        success_indicators = [
+            "overwriting" in output.lower(),
+            "vector database already exists" in output.lower(),
+            result.returncode == 0
+        ]
         
-        # If no database message, that's also fine (might have been deleted)
-        print("✅ PASSED: Command executed without prompting")
-        return True
+        assert any(success_indicators), f"Command did not complete successfully. Output: {output}"
+        
+        print("SUCCESS: Command executed without prompting")
         
     except subprocess.TimeoutExpired:
-        print("❌ FAILED: Command timed out (likely waiting for input)")
-        return False
+        assert False, "Command timed out (likely waiting for input)"
     except Exception as e:
-        print(f"❌ ERROR: {e}")
-        return False
+        assert False, f"Unexpected error: {e}"
 
 if __name__ == "__main__":
     success = test_index_no_prompt()
