@@ -1,19 +1,21 @@
-"""
-Database repair utilities for DocRAG Kit.
-
-This module provides utilities to diagnose and fix common database issues,
-particularly the "readonly database" error that can occur with SQLite/ChromaDB.
-"""
+"""Database repair utilities for DocRAG Kit."""
 
 import os
 import shutil
 import sqlite3
+import subprocess
 from pathlib import Path
 from typing import List, Tuple, Optional
 
+try:
+    import psutil
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
+
 
 class DatabaseRepair:
-    """Utility class for diagnosing and repairing database issues."""
+    """Handles database repair and process management for DocRAG Kit."""
     
     def __init__(self, project_root: Path):
         """
@@ -22,13 +24,14 @@ class DatabaseRepair:
         Args:
             project_root: Path to project root directory
         """
-        self.project_root = project_root
-        self.docrag_dir = project_root / ".docrag"
+        self.project_root = Path(project_root)
+        self.docrag_dir = self.project_root / ".docrag"
         self.vectordb_path = self.docrag_dir / "vectordb"
+        self.config_path = self.docrag_dir / "config.yaml"
     
     def diagnose_issues(self) -> Tuple[List[str], List[str]]:
         """
-        Diagnose database issues.
+        Diagnose database and process issues.
         
         Returns:
             Tuple of (critical_issues, warnings)
@@ -36,48 +39,61 @@ class DatabaseRepair:
         critical_issues = []
         warnings = []
         
+        # Check if DocRAG is initialized
         if not self.docrag_dir.exists():
-            critical_issues.append("DocRAG not initialized (.docrag directory missing)")
+            critical_issues.append("DocRAG not initialized (.docrag/ directory missing)")
             return critical_issues, warnings
         
+        if not self.config_path.exists():
+            critical_issues.append("Configuration file missing (.docrag/config.yaml)")
+            return critical_issues, warnings
+        
+        # Check vector database directory
         if not self.vectordb_path.exists():
-            warnings.append("Vector database not created yet")
+            warnings.append("Vector database directory doesn't exist")
             return critical_issues, warnings
         
         # Check directory permissions
         if not os.access(self.vectordb_path, os.W_OK):
-            critical_issues.append("Vector database directory not writable")
+            critical_issues.append("Vector database directory is not writable")
+        
+        # Check for database files and their permissions
+        db_files = list(self.vectordb_path.rglob("*.sqlite*")) + list(self.vectordb_path.rglob("*.db"))
+        
+        for db_file in db_files:
+            # Check file permissions
+            if not os.access(db_file, os.W_OK):
+                critical_issues.append(f"Database file {db_file.name} is not writable (readonly database)")
+            
+            # Check for database corruption
+            try:
+                conn = sqlite3.connect(str(db_file))
+                conn.execute("PRAGMA integrity_check;")
+                conn.close()
+            except sqlite3.DatabaseError as e:
+                if "readonly database" in str(e).lower():
+                    critical_issues.append(f"Database {db_file.name} is readonly")
+                elif "locked" in str(e).lower():
+                    critical_issues.append(f"Database {db_file.name} is locked by another process")
+                else:
+                    critical_issues.append(f"Database {db_file.name} is corrupted: {e}")
+            except Exception as e:
+                warnings.append(f"Could not check database {db_file.name}: {e}")
         
         # Check for lock files
         lock_files = (
-            list(self.vectordb_path.rglob("*.db-wal")) +
+            list(self.vectordb_path.rglob("*.db-wal")) + 
             list(self.vectordb_path.rglob("*.db-shm")) +
             list(self.vectordb_path.rglob("*.lock"))
         )
+        
         if lock_files:
-            warnings.append(f"Database lock files found ({len(lock_files)} files)")
+            warnings.append(f"Found {len(lock_files)} database lock files")
         
-        # Check SQLite databases
-        db_files = (
-            list(self.vectordb_path.rglob("*.sqlite*")) +
-            list(self.vectordb_path.rglob("*.db"))
-        )
-        
-        for db_file in db_files:
-            try:
-                # Try to open in write mode
-                conn = sqlite3.connect(str(db_file), timeout=1.0)
-                conn.execute("PRAGMA journal_mode=WAL;")
-                conn.close()
-            except sqlite3.OperationalError as e:
-                if "readonly database" in str(e).lower():
-                    critical_issues.append(f"Readonly database: {db_file.name}")
-                elif "database is locked" in str(e).lower():
-                    critical_issues.append(f"Database locked: {db_file.name}")
-                else:
-                    warnings.append(f"Database issue in {db_file.name}: {e}")
-            except Exception as e:
-                warnings.append(f"Could not check {db_file.name}: {e}")
+        # Check for conflicting processes
+        conflicting_processes = self.find_conflicting_processes()
+        if conflicting_processes:
+            critical_issues.append(f"Found {len(conflicting_processes)} conflicting MCP server processes")
         
         # Check disk space
         try:
@@ -85,14 +101,123 @@ class DatabaseRepair:
             free_bytes = statvfs.f_frsize * statvfs.f_bavail
             free_mb = free_bytes / (1024 * 1024)
             
-            if free_mb < 50:  # Less than 50MB
-                critical_issues.append(f"Low disk space ({free_mb:.1f} MB available)")
-            elif free_mb < 200:  # Less than 200MB
+            if free_mb < 100:  # Less than 100MB
                 warnings.append(f"Low disk space ({free_mb:.1f} MB available)")
         except Exception:
-            warnings.append("Could not check disk space")
+            pass
         
         return critical_issues, warnings
+    
+    def find_conflicting_processes(self) -> List[dict]:
+        """
+        Find running processes that might conflict with DocRAG.
+        
+        Returns:
+            List of process information dictionaries
+        """
+        conflicting_processes = []
+        
+        if not PSUTIL_AVAILABLE:
+            # Fallback to subprocess approach
+            try:
+                result = subprocess.run(['pgrep', '-f', 'docrag.mcp_server'], 
+                                      capture_output=True, text=True)
+                if result.returncode == 0:
+                    pids = result.stdout.strip().split('\n')
+                    for pid in pids:
+                        if pid:
+                            conflicting_processes.append({
+                                'pid': int(pid),
+                                'name': 'python',
+                                'cmdline': f'python -m docrag.mcp_server (PID: {pid})'
+                            })
+            except Exception:
+                pass
+            return conflicting_processes
+        
+        try:
+            for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+                try:
+                    cmdline = proc.info['cmdline']
+                    if cmdline and any('docrag.mcp_server' in arg for arg in cmdline):
+                        conflicting_processes.append({
+                            'pid': proc.info['pid'],
+                            'name': proc.info['name'],
+                            'cmdline': ' '.join(cmdline)
+                        })
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+        except Exception:
+            pass
+        
+        return conflicting_processes
+    
+    def kill_conflicting_processes(self) -> bool:
+        """
+        Kill conflicting MCP server processes.
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            conflicting_processes = self.find_conflicting_processes()
+            
+            if not PSUTIL_AVAILABLE:
+                # Fallback to subprocess approach
+                try:
+                    subprocess.run(['pkill', '-f', 'docrag.mcp_server'], 
+                                 capture_output=True, timeout=10)
+                    return True
+                except Exception:
+                    return False
+            
+            for proc_info in conflicting_processes:
+                try:
+                    proc = psutil.Process(proc_info['pid'])
+                    proc.terminate()
+                    
+                    # Wait for process to terminate
+                    try:
+                        proc.wait(timeout=5)
+                    except psutil.TimeoutExpired:
+                        # Force kill if it doesn't terminate gracefully
+                        proc.kill()
+                        proc.wait(timeout=2)
+                        
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+            
+            return True
+        except Exception:
+            return False
+    
+    def fix_readonly_database(self) -> bool:
+        """
+        Fix readonly database issues by correcting file permissions.
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Fix directory permissions
+            if self.vectordb_path.exists():
+                os.chmod(self.vectordb_path, 0o755)
+                
+                # Fix permissions for all files and subdirectories
+                for root, dirs, files in os.walk(self.vectordb_path):
+                    # Fix directory permissions
+                    for d in dirs:
+                        dir_path = os.path.join(root, d)
+                        os.chmod(dir_path, 0o755)
+                    
+                    # Fix file permissions
+                    for f in files:
+                        file_path = os.path.join(root, f)
+                        os.chmod(file_path, 0o644)
+            
+            return True
+        except Exception:
+            return False
     
     def fix_permissions(self) -> bool:
         """
@@ -102,18 +227,13 @@ class DatabaseRepair:
             True if successful, False otherwise
         """
         try:
-            if not self.vectordb_path.exists():
-                return True
+            # Fix .docrag directory permissions
+            if self.docrag_dir.exists():
+                os.chmod(self.docrag_dir, 0o755)
             
-            # Fix directory permissions
-            os.chmod(self.vectordb_path, 0o755)
-            
-            # Fix file permissions recursively
-            for root, dirs, files in os.walk(self.vectordb_path):
-                for d in dirs:
-                    os.chmod(os.path.join(root, d), 0o755)
-                for f in files:
-                    os.chmod(os.path.join(root, f), 0o644)
+            # Fix vectordb directory permissions
+            if self.vectordb_path.exists():
+                return self.fix_readonly_database()
             
             return True
         except Exception:
@@ -127,17 +247,15 @@ class DatabaseRepair:
             True if successful, False otherwise
         """
         try:
-            if not self.vectordb_path.exists():
-                return True
+            lock_patterns = ["*.db-wal", "*.db-shm", "*.lock"]
             
-            lock_files = (
-                list(self.vectordb_path.rglob("*.db-wal")) +
-                list(self.vectordb_path.rglob("*.db-shm")) +
-                list(self.vectordb_path.rglob("*.lock"))
-            )
-            
-            for lock_file in lock_files:
-                lock_file.unlink()
+            for pattern in lock_patterns:
+                lock_files = list(self.vectordb_path.rglob(pattern))
+                for lock_file in lock_files:
+                    try:
+                        lock_file.unlink()
+                    except Exception:
+                        continue
             
             return True
         except Exception:
@@ -145,7 +263,7 @@ class DatabaseRepair:
     
     def rebuild_database(self) -> bool:
         """
-        Remove corrupted database (requires reindexing after).
+        Remove corrupted database to force rebuild.
         
         Returns:
             True if successful, False otherwise
@@ -156,47 +274,6 @@ class DatabaseRepair:
             return True
         except Exception:
             return False
-    
-    def fix_readonly_database(self) -> bool:
-        """
-        Fix readonly database issues by resetting permissions and removing locks.
-        
-        Returns:
-            True if successful, False otherwise
-        """
-        success = True
-        
-        # Step 1: Fix permissions
-        if not self.fix_permissions():
-            success = False
-        
-        # Step 2: Remove lock files
-        if not self.remove_lock_files():
-            success = False
-        
-        # Step 3: Try to access database
-        if self.vectordb_path.exists():
-            db_files = (
-                list(self.vectordb_path.rglob("*.sqlite*")) +
-                list(self.vectordb_path.rglob("*.db"))
-            )
-            
-            for db_file in db_files:
-                try:
-                    # Try to open and perform a simple operation
-                    conn = sqlite3.connect(str(db_file), timeout=5.0)
-                    conn.execute("PRAGMA journal_mode=WAL;")
-                    conn.execute("PRAGMA synchronous=NORMAL;")
-                    conn.close()
-                except sqlite3.OperationalError:
-                    # If still readonly, the database is corrupted
-                    success = False
-                    break
-                except Exception:
-                    success = False
-                    break
-        
-        return success
     
     def get_repair_recommendations(self, critical_issues: List[str], warnings: List[str]) -> List[str]:
         """
@@ -211,35 +288,68 @@ class DatabaseRepair:
         """
         recommendations = []
         
-        if "DocRAG not initialized" in str(critical_issues):
+        if any("not initialized" in issue.lower() for issue in critical_issues):
             recommendations.append("Run 'docrag init' to initialize DocRAG")
-            return recommendations
         
-        if any("readonly database" in issue.lower() for issue in critical_issues):
-            recommendations.extend([
-                "Run 'docrag fix-database' to repair readonly database",
-                "Or manually: rm -rf .docrag/vectordb && docrag index"
-            ])
+        if any("readonly" in issue.lower() for issue in critical_issues):
+            recommendations.append("Fix file permissions with 'docrag fix-database'")
         
-        if any("database locked" in issue.lower() for issue in critical_issues):
-            recommendations.extend([
-                "Close any applications using the database",
-                "Run 'docrag fix-database' to remove lock files"
-            ])
+        if any("locked" in issue.lower() for issue in critical_issues):
+            recommendations.append("Kill conflicting processes and remove lock files")
         
-        if any("not writable" in issue.lower() for issue in critical_issues):
-            recommendations.extend([
-                "Fix permissions: chmod -R 755 .docrag/",
-                "Run 'docrag fix-database' to repair permissions"
-            ])
+        if any("corrupted" in issue.lower() for issue in critical_issues):
+            recommendations.append("Rebuild database with 'rm -rf .docrag/vectordb && docrag index'")
         
-        if any("low disk space" in issue.lower() for issue in critical_issues):
-            recommendations.append("Free up disk space before continuing")
+        if any("conflicting" in issue.lower() for issue in critical_issues):
+            recommendations.append("Stop conflicting MCP server processes")
         
-        if "Vector database not created" in str(warnings):
-            recommendations.append("Run 'docrag index' to create vector database")
+        if any("lock files" in warning.lower() for warning in warnings):
+            recommendations.append("Remove database lock files")
+        
+        if any("disk space" in warning.lower() for warning in warnings):
+            recommendations.append("Free up disk space")
         
         if not recommendations:
-            recommendations.append("Run 'docrag doctor' for detailed diagnostics")
+            recommendations.append("Run 'docrag doctor' for detailed diagnosis")
         
         return recommendations
+    
+    def comprehensive_repair(self) -> Tuple[List[str], List[str]]:
+        """
+        Perform comprehensive repair of database issues.
+        
+        Returns:
+            Tuple of (fixes_applied, remaining_issues)
+        """
+        fixes_applied = []
+        
+        # Step 1: Kill conflicting processes
+        conflicting_processes = self.find_conflicting_processes()
+        if conflicting_processes:
+            if self.kill_conflicting_processes():
+                fixes_applied.append(f"Killed {len(conflicting_processes)} conflicting processes")
+        
+        # Step 2: Remove lock files
+        lock_files = (
+            list(self.vectordb_path.rglob("*.db-wal")) + 
+            list(self.vectordb_path.rglob("*.db-shm")) +
+            list(self.vectordb_path.rglob("*.lock"))
+        )
+        
+        if lock_files:
+            if self.remove_lock_files():
+                fixes_applied.append("Removed database lock files")
+        
+        # Step 3: Fix permissions
+        if self.fix_permissions():
+            fixes_applied.append("Fixed file and directory permissions")
+        
+        # Step 4: Check if database is still problematic
+        critical_issues, warnings = self.diagnose_issues()
+        
+        # Step 5: If database is still corrupted, offer to rebuild
+        if any("corrupted" in issue.lower() or "readonly" in issue.lower() for issue in critical_issues):
+            # This will be handled by the CLI with user confirmation
+            pass
+        
+        return fixes_applied, critical_issues

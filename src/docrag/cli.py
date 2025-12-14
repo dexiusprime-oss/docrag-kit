@@ -681,7 +681,7 @@ def update():
     click.echo("3. Use 'reindex_docs(check_only=True)' to check for updates")
 
 
-@cli.command()
+@cli.command("fix-database")
 def fix_database():
     """Fix database permission and corruption issues."""
     from pathlib import Path
@@ -718,48 +718,44 @@ def fix_database():
     
     click.echo("\n" + "=" * 60)
     
-    fixes_applied = []
+    # Kill conflicting processes first
+    conflicting_processes = repair.find_conflicting_processes()
+    if conflicting_processes:
+        click.echo(f"\nFound {len(conflicting_processes)} conflicting MCP server processes:")
+        for proc in conflicting_processes:
+            click.echo(f"   PID {proc['pid']}: {proc['cmdline']}")
+        
+        if click.confirm("Kill conflicting processes?", default=True):
+            if repair.kill_conflicting_processes():
+                click.echo("   SUCCESS: Conflicting processes terminated")
+            else:
+                click.echo("   WARNING: Some processes could not be terminated")
     
-    # Apply fixes for critical issues
-    if critical_issues:
-        click.echo("\nAPPLYING FIXES:")
+    # Apply comprehensive repair
+    click.echo("\nAPPLYING AUTOMATIC FIXES:")
+    fixes_applied, remaining_issues = repair.comprehensive_repair()
+    
+    if fixes_applied:
+        click.echo("SUCCESS: Applied automatic fixes:")
+        for fix in fixes_applied:
+            click.echo(f"   • {fix}")
+    
+    # Handle remaining critical issues that need user confirmation
+    if remaining_issues:
+        click.echo(f"\nREMAINING ISSUES ({len(remaining_issues)}):")
+        for issue in remaining_issues:
+            click.echo(f"   ERROR: {issue}")
         
-        # Fix readonly database issues
-        if any("readonly database" in issue.lower() for issue in critical_issues):
-            click.echo("1. Fixing readonly database...")
-            if repair.fix_readonly_database():
-                fixes_applied.append("Fixed readonly database permissions")
-                click.echo("   SUCCESS: Database permissions fixed")
-            else:
-                click.echo("   FAILED: Could not fix database permissions")
-                click.echo("   RECOMMENDATION: Run 'rm -rf .docrag/vectordb && docrag index'")
-        
-        # Fix permission issues
-        if any("not writable" in issue.lower() for issue in critical_issues):
-            click.echo("2. Fixing directory permissions...")
-            if repair.fix_permissions():
-                fixes_applied.append("Fixed directory permissions")
-                click.echo("   SUCCESS: Directory permissions fixed")
-            else:
-                click.echo("   FAILED: Could not fix directory permissions")
-        
-        # Remove lock files
-        if any("lock" in issue.lower() for issue in critical_issues + warnings):
-            click.echo("3. Removing database lock files...")
-            if repair.remove_lock_files():
-                fixes_applied.append("Removed database lock files")
-                click.echo("   SUCCESS: Lock files removed")
-            else:
-                click.echo("   FAILED: Could not remove lock files")
-        
-        # Handle corrupted database
-        if any("corrupted" in issue.lower() or "locked" in issue.lower() for issue in critical_issues):
-            if click.confirm("4. Database appears corrupted. Rebuild from scratch?"):
+        # Check if database rebuild is needed
+        if any("readonly" in issue.lower() or "corrupted" in issue.lower() or "locked" in issue.lower() 
+               for issue in remaining_issues):
+            click.echo("\nDatabase appears to be corrupted or locked.")
+            if click.confirm("Rebuild database from scratch? (This will re-index all documents)", default=True):
                 click.echo("   Rebuilding database...")
                 if repair.rebuild_database():
-                    fixes_applied.append("Database rebuilt (requires reindexing)")
                     click.echo("   SUCCESS: Database removed")
                     click.echo("   INFO: Run 'docrag index' to rebuild")
+                    fixes_applied.append("Database rebuilt (requires reindexing)")
                 else:
                     click.echo("   FAILED: Could not remove database")
     
@@ -775,10 +771,10 @@ def fix_database():
         click.echo("\nNEXT STEPS:")
         if any("requires reindexing" in fix for fix in fixes_applied):
             click.echo("   1. Run: docrag index")
-        click.echo("   2. Restart MCP servers in Kiro")
+        click.echo("   2. Restart Kiro IDE to reload MCP servers")
         click.echo("   3. Test with: docrag doctor")
     else:
-        click.echo("INFO: No automatic fixes were applied")
+        click.echo("INFO: No fixes were applied")
         
         # Show recommendations
         recommendations = repair.get_repair_recommendations(critical_issues, warnings)
@@ -786,6 +782,23 @@ def fix_database():
             click.echo("\nRECOMMENDATIONS:")
             for rec in recommendations:
                 click.echo(f"   • {rec}")
+    
+    # Re-diagnose to show final status
+    if fixes_applied:
+        click.echo("\nFINAL STATUS CHECK:")
+        final_critical, final_warnings = repair.diagnose_issues()
+        
+        if not final_critical:
+            click.echo("   SUCCESS: All critical issues resolved!")
+        else:
+            click.echo("   WARNING: Some critical issues remain:")
+            for issue in final_critical:
+                click.echo(f"      • {issue}")
+        
+        if final_warnings:
+            click.echo("   INFO: Remaining warnings:")
+            for warning in final_warnings:
+                click.echo(f"      • {warning}")
     
     # Re-diagnose to check if issues are resolved
     if fixes_applied:
@@ -941,7 +954,7 @@ def fix_database():
         click.echo("   3. Check file system permissions: ls -la .docrag/")
 
 
-@cli.command()
+@cli.command("debug-mcp")
 def debug_mcp():
     """Debug MCP server paths and synchronization issues."""
     from pathlib import Path
@@ -1225,29 +1238,49 @@ def doctor():
     click.echo("\nChecking CLI vs MCP synchronization...")
     try:
         # Check CLI database
-        cli_docs = vector_db.list_documents()
-        cli_count = len(cli_docs)
-        click.echo(f"   CLI database: {cli_count} documents")
-        
-        # Try to simulate MCP access
-        try:
-            from .mcp_server import MCPServer
-            mcp_server = MCPServer(project_root)
-            mcp_docs = mcp_server.vector_db.list_documents()
-            mcp_count = len(mcp_docs)
-            click.echo(f"   MCP database: {mcp_count} documents")
+        if config_path.exists():
+            config_manager = ConfigManager(project_root)
+            config = config_manager.load_config()
             
-            if cli_count != mcp_count:
-                critical_issues.append(f"CLI/MCP sync issue: CLI has {cli_count} docs, MCP has {mcp_count}")
-                click.echo(f"   ERROR: Synchronization issue detected!")
-                click.echo(f"      CLI sees {cli_count} documents")
-                click.echo(f"      MCP sees {mcp_count} documents")
-            else:
-                click.echo("   SUCCESS: CLI and MCP are synchronized")
+            if config:
+                from .vector_db import VectorDBManager
+                config_dict = config.to_dict()
+                vector_db = VectorDBManager(config_dict, project_root)
                 
-        except Exception as mcp_error:
-            warnings_found.append(f"Could not test MCP access: {mcp_error}")
-            click.echo(f"   WARNING: Could not test MCP access: {mcp_error}")
+                try:
+                    cli_docs = vector_db.list_documents()
+                    cli_count = len(cli_docs)
+                    click.echo(f"   CLI database: {cli_count} documents")
+                    
+                    # Try to simulate MCP access
+                    try:
+                        from .mcp_server import MCPServer
+                        mcp_server = MCPServer(project_root)
+                        mcp_docs = mcp_server.vector_db.list_documents()
+                        mcp_count = len(mcp_docs)
+                        click.echo(f"   MCP database: {mcp_count} documents")
+                        
+                        if cli_count != mcp_count:
+                            issues_found.append(f"CLI/MCP sync issue: CLI has {cli_count} docs, MCP has {mcp_count}")
+                            click.echo(f"   ERROR: Synchronization issue detected!")
+                            click.echo(f"      CLI sees {cli_count} documents")
+                            click.echo(f"      MCP sees {mcp_count} documents")
+                        else:
+                            click.echo("   SUCCESS: CLI and MCP are synchronized")
+                            
+                    except Exception as mcp_error:
+                        warnings_found.append(f"Could not test MCP access: {mcp_error}")
+                        click.echo(f"   WARNING: Could not test MCP access: {mcp_error}")
+                        
+                except Exception as cli_error:
+                    warnings_found.append(f"Could not check CLI database: {cli_error}")
+                    click.echo(f"   WARNING: Could not check CLI database: {cli_error}")
+            else:
+                warnings_found.append("Could not load configuration for sync check")
+                click.echo("   WARNING: Could not load configuration")
+        else:
+            warnings_found.append("Configuration missing for sync check")
+            click.echo("   WARNING: Configuration file missing")
             
     except Exception as e:
         warnings_found.append(f"Could not check CLI/MCP sync: {e}")
@@ -1280,7 +1313,7 @@ def doctor():
                         
                         # Verify working directory matches current project
                         if Path(mcp_working_dir) != project_root:
-                            critical_issues.append("MCP working directory mismatch")
+                            issues_found.append("MCP working directory mismatch")
                             click.echo(f"      ERROR: MCP working directory mismatch!")
                             click.echo(f"         MCP uses: {mcp_working_dir}")
                             click.echo(f"         Current:  {project_root}")
