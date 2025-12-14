@@ -53,6 +53,15 @@ docrag mcp-config --update --non-interactive
 docrag update
 ```
 
+### `docrag fix-database`
+```bash
+# Fix database permission and corruption issues (may prompt for confirmation)
+docrag fix-database
+
+# Note: This command may ask for confirmation before rebuilding corrupted databases
+# It automatically fixes permissions and removes lock files without prompts
+```
+
 ## Summary
 
 - **Always add `--non-interactive` to `docrag init`**
@@ -61,5 +70,6 @@ docrag update
 - **`docrag index` - no flags needed, automatically overwrites**
 - **`docrag reindex` - no flags needed, automatically rebuilds**
 - **`docrag update` - no flags needed, updates existing projects**
+- **`docrag fix-database` - may prompt for confirmation on database rebuild**
 - **Never use `docrag config --edit` in automated contexts**
 - **Use `docrag config` (without --edit) to view configuration**

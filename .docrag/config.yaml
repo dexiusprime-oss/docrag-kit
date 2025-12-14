@@ -1,0 +1,38 @@
+project:
+  name: "docrag-kit-test"
+  type: "general"
+
+llm:
+  provider: "openai"
+  embedding_model: "text-embedding-3-small"
+  llm_model: "gpt-4o-mini"
+  temperature: 0.3
+
+indexing:
+  directories:
+    - "docs/"
+  extensions:
+    - ".md"
+  exclude_patterns:
+    - ".git/"
+
+chunking:
+  chunk_size: 1000
+  chunk_overlap: 200
+
+retrieval:
+  top_k: 5
+
+prompt:
+  template: |
+    You are a developer assistant for the docrag-kit-test project.
+    Answer questions based on the provided documentation context.
+    Be concise and accurate. Respond in Russian if the question is in Russian.
+    If you don't know the answer based on the context, say so.
+
+    Context:
+    {context}
+
+    Question: {question}
+
+    Answer:

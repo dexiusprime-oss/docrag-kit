@@ -680,6 +680,266 @@ def update():
 
 
 @cli.command()
+def fix_database():
+    """Fix database permission and corruption issues."""
+    from pathlib import Path
+    from .database_repair import DatabaseRepair
+    from .config_manager import ConfigManager
+    
+    project_root = Path.cwd()
+    repair = DatabaseRepair(project_root)
+    
+    click.echo("DATABASE FIX: Diagnosing database issues...\n")
+    
+    # Diagnose issues
+    critical_issues, warnings = repair.diagnose_issues()
+    
+    if "DocRAG not initialized" in str(critical_issues):
+        click.echo("ERROR: DocRAG not initialized in this project")
+        click.echo("   Run 'docrag init' first")
+        return
+    
+    # Display findings
+    if critical_issues:
+        click.echo("CRITICAL ISSUES:")
+        for issue in critical_issues:
+            click.echo(f"   ERROR: {issue}")
+    
+    if warnings:
+        click.echo("\nWARNINGS:")
+        for warning in warnings:
+            click.echo(f"   WARNING: {warning}")
+    
+    if not critical_issues and not warnings:
+        click.echo("SUCCESS: No database issues found!")
+        return
+    
+    click.echo("\n" + "=" * 60)
+    
+    fixes_applied = []
+    
+    # Apply fixes for critical issues
+    if critical_issues:
+        click.echo("\nAPPLYING FIXES:")
+        
+        # Fix readonly database issues
+        if any("readonly database" in issue.lower() for issue in critical_issues):
+            click.echo("1. Fixing readonly database...")
+            if repair.fix_readonly_database():
+                fixes_applied.append("Fixed readonly database permissions")
+                click.echo("   SUCCESS: Database permissions fixed")
+            else:
+                click.echo("   FAILED: Could not fix database permissions")
+                click.echo("   RECOMMENDATION: Run 'rm -rf .docrag/vectordb && docrag index'")
+        
+        # Fix permission issues
+        if any("not writable" in issue.lower() for issue in critical_issues):
+            click.echo("2. Fixing directory permissions...")
+            if repair.fix_permissions():
+                fixes_applied.append("Fixed directory permissions")
+                click.echo("   SUCCESS: Directory permissions fixed")
+            else:
+                click.echo("   FAILED: Could not fix directory permissions")
+        
+        # Remove lock files
+        if any("lock" in issue.lower() for issue in critical_issues + warnings):
+            click.echo("3. Removing database lock files...")
+            if repair.remove_lock_files():
+                fixes_applied.append("Removed database lock files")
+                click.echo("   SUCCESS: Lock files removed")
+            else:
+                click.echo("   FAILED: Could not remove lock files")
+        
+        # Handle corrupted database
+        if any("corrupted" in issue.lower() or "locked" in issue.lower() for issue in critical_issues):
+            if click.confirm("4. Database appears corrupted. Rebuild from scratch?"):
+                click.echo("   Rebuilding database...")
+                if repair.rebuild_database():
+                    fixes_applied.append("Database rebuilt (requires reindexing)")
+                    click.echo("   SUCCESS: Database removed")
+                    click.echo("   INFO: Run 'docrag index' to rebuild")
+                else:
+                    click.echo("   FAILED: Could not remove database")
+    
+    # Final summary
+    click.echo("\n" + "=" * 60)
+    click.echo("\nSUMMARY:")
+    
+    if fixes_applied:
+        click.echo(f"SUCCESS: Applied {len(fixes_applied)} fix(es):")
+        for fix in fixes_applied:
+            click.echo(f"   • {fix}")
+        
+        click.echo("\nNEXT STEPS:")
+        if any("requires reindexing" in fix for fix in fixes_applied):
+            click.echo("   1. Run: docrag index")
+        click.echo("   2. Restart MCP servers in Kiro")
+        click.echo("   3. Test with: docrag doctor")
+    else:
+        click.echo("INFO: No automatic fixes were applied")
+        
+        # Show recommendations
+        recommendations = repair.get_repair_recommendations(critical_issues, warnings)
+        if recommendations:
+            click.echo("\nRECOMMENDATIONS:")
+            for rec in recommendations:
+                click.echo(f"   • {rec}")
+    
+    # Re-diagnose to check if issues are resolved
+    if fixes_applied:
+        click.echo("\nRE-CHECKING ISSUES:")
+        new_critical, new_warnings = repair.diagnose_issues()
+        
+        if not new_critical:
+            click.echo("   SUCCESS: All critical issues resolved!")
+        else:
+            click.echo("   WARNING: Some issues remain:")
+            for issue in new_critical:
+                click.echo(f"      • {issue}")
+    
+    # Check 1: Database directory permissions
+    click.echo("1. Checking directory permissions...")
+    try:
+        if vectordb_path.exists():
+            # Check if directory is writable
+            test_file = vectordb_path / ".write_test"
+            try:
+                test_file.touch()
+                test_file.unlink()
+                click.echo("   SUCCESS: Directory is writable")
+            except PermissionError:
+                issues_found.append("Directory not writable")
+                click.echo("   ERROR: Directory not writable")
+                
+                # Fix permissions
+                try:
+                    os.chmod(vectordb_path, 0o755)
+                    for root, dirs, files in os.walk(vectordb_path):
+                        for d in dirs:
+                            os.chmod(os.path.join(root, d), 0o755)
+                        for f in files:
+                            os.chmod(os.path.join(root, f), 0o644)
+                    fixes_applied.append("Fixed directory permissions")
+                    click.echo("   FIXED: Directory permissions corrected")
+                except Exception as e:
+                    click.echo(f"   FAILED: Could not fix permissions: {e}")
+        else:
+            click.echo("   INFO: Database directory doesn't exist yet")
+    except Exception as e:
+        click.echo(f"   ERROR: Permission check failed: {e}")
+    
+    # Check 2: Database file locks
+    click.echo("\n2. Checking for database locks...")
+    if vectordb_path.exists():
+        lock_files = list(vectordb_path.rglob("*.db-wal")) + list(vectordb_path.rglob("*.db-shm"))
+        if lock_files:
+            issues_found.append("Database lock files found")
+            click.echo(f"   WARNING: Found {len(lock_files)} lock files")
+            for lock_file in lock_files:
+                click.echo(f"      {lock_file.name}")
+            
+            # Offer to remove lock files
+            if click.confirm("   Remove lock files? (This will close any open connections)"):
+                try:
+                    for lock_file in lock_files:
+                        lock_file.unlink()
+                    fixes_applied.append("Removed database lock files")
+                    click.echo("   FIXED: Lock files removed")
+                except Exception as e:
+                    click.echo(f"   FAILED: Could not remove lock files: {e}")
+        else:
+            click.echo("   SUCCESS: No lock files found")
+    
+    # Check 3: Database corruption
+    click.echo("\n3. Checking database integrity...")
+    if vectordb_path.exists():
+        try:
+            # Try to access ChromaDB
+            from .vector_db import VectorDBManager
+            config_manager = ConfigManager(project_root)
+            config = config_manager.load_config()
+            
+            if config:
+                config_dict = config.to_dict()
+                vector_db = VectorDBManager(config_dict, project_root)
+                
+                # Try to list documents (this will fail if DB is corrupted)
+                try:
+                    docs = vector_db.list_documents()
+                    click.echo(f"   SUCCESS: Database accessible ({len(docs)} documents)")
+                except Exception as db_error:
+                    issues_found.append("Database corruption detected")
+                    click.echo(f"   ERROR: Database corrupted: {db_error}")
+                    
+                    # Offer to rebuild database
+                    if click.confirm("   Rebuild database from scratch? (This will re-index all documents)"):
+                        try:
+                            # Remove corrupted database
+                            shutil.rmtree(vectordb_path)
+                            click.echo("   INFO: Corrupted database removed")
+                            
+                            # Trigger reindexing
+                            click.echo("   INFO: Starting reindexing...")
+                            from click.testing import CliRunner
+                            runner = CliRunner()
+                            result = runner.invoke(index, [])
+                            
+                            if result.exit_code == 0:
+                                fixes_applied.append("Database rebuilt successfully")
+                                click.echo("   FIXED: Database rebuilt successfully")
+                            else:
+                                click.echo("   FAILED: Database rebuild failed")
+                        except Exception as e:
+                            click.echo(f"   FAILED: Could not rebuild database: {e}")
+            else:
+                click.echo("   ERROR: Could not load configuration")
+        except Exception as e:
+            click.echo(f"   ERROR: Database check failed: {e}")
+    
+    # Check 4: Disk space
+    click.echo("\n4. Checking disk space...")
+    try:
+        statvfs = os.statvfs(str(docrag_dir))
+        free_bytes = statvfs.f_frsize * statvfs.f_bavail
+        free_mb = free_bytes / (1024 * 1024)
+        
+        if free_mb < 100:  # Less than 100MB
+            issues_found.append("Low disk space")
+            click.echo(f"   WARNING: Low disk space ({free_mb:.1f} MB available)")
+        else:
+            click.echo(f"   SUCCESS: Sufficient disk space ({free_mb:.1f} MB available)")
+    except Exception as e:
+        click.echo(f"   ERROR: Could not check disk space: {e}")
+    
+    # Summary
+    click.echo("\n" + "=" * 60)
+    click.echo("\nSUMMARY:")
+    
+    if not issues_found:
+        click.echo("SUCCESS: No database issues found!")
+    else:
+        click.echo(f"ISSUES: Found {len(issues_found)} issue(s):")
+        for issue in issues_found:
+            click.echo(f"   • {issue}")
+    
+    if fixes_applied:
+        click.echo(f"\nFIXES: Applied {len(fixes_applied)} fix(es):")
+        for fix in fixes_applied:
+            click.echo(f"   • {fix}")
+        
+        click.echo("\nNEXT STEPS:")
+        click.echo("   1. Restart any running MCP servers")
+        click.echo("   2. Try running 'docrag index' if database was rebuilt")
+        click.echo("   3. Test with 'docrag doctor' to verify everything works")
+    
+    if issues_found and not fixes_applied:
+        click.echo("\nRECOMMENDED ACTIONS:")
+        click.echo("   1. Run this command again and accept suggested fixes")
+        click.echo("   2. Or manually run: rm -rf .docrag/vectordb && docrag index")
+        click.echo("   3. Check file system permissions: ls -la .docrag/")
+
+
+@cli.command()
 def doctor():
     """Diagnose DocRAG installation and configuration issues."""
     from pathlib import Path
@@ -788,7 +1048,36 @@ def doctor():
             issues_found.append(f"Required package '{package}' not installed")
             click.echo(f"   ERROR: {package} not installed")
     
-    # Check 7: MCP configuration
+    # Check 7: Database-specific issues
+    click.echo("\nChecking database-specific issues...")
+    if vectordb_path.exists():
+        # Check for readonly database issue
+        try:
+            import sqlite3
+            db_files = list(vectordb_path.rglob("*.sqlite*")) + list(vectordb_path.rglob("*.db"))
+            
+            for db_file in db_files:
+                try:
+                    # Try to open database in write mode
+                    conn = sqlite3.connect(str(db_file))
+                    conn.execute("PRAGMA journal_mode=WAL;")
+                    conn.close()
+                    click.echo(f"   SUCCESS: {db_file.name} is writable")
+                except sqlite3.OperationalError as e:
+                    if "readonly database" in str(e).lower():
+                        issues_found.append(f"Readonly database: {db_file.name}")
+                        click.echo(f"   ERROR: {db_file.name} is readonly")
+                    else:
+                        warnings_found.append(f"Database issue in {db_file.name}: {e}")
+                        click.echo(f"   WARNING: {db_file.name}: {e}")
+                except Exception as e:
+                    click.echo(f"   WARNING: Could not check {db_file.name}: {e}")
+        except ImportError:
+            click.echo("   INFO: sqlite3 not available for database check")
+        except Exception as e:
+            click.echo(f"   ERROR: Database check failed: {e}")
+    
+    # Check 8: MCP configuration
     click.echo("\nChecking MCP configuration...")
     workspace_mcp = project_root / ".kiro" / "settings" / "mcp.json"
     user_mcp = Path.home() / ".kiro" / "settings" / "mcp.json"
@@ -805,18 +1094,18 @@ def doctor():
                     click.echo("      SUCCESS: docrag server configured")
                 else:
                     warnings_found.append("docrag server not found in MCP config")
-                    click.echo("      WARNING:  docrag server not configured")
+                    click.echo("      WARNING: docrag server not configured")
         except Exception as e:
             warnings_found.append(f"Failed to read MCP config: {e}")
-            click.echo(f"      WARNING:  Failed to read config: {e}")
+            click.echo(f"      WARNING: Failed to read config: {e}")
     
     if user_mcp.exists():
-        click.echo("   ℹ️  User MCP config exists")
+        click.echo("   INFO: User MCP config exists")
         mcp_configured = True
     
     if not mcp_configured:
         warnings_found.append("MCP not configured")
-        click.echo("   WARNING:  MCP not configured")
+        click.echo("   WARNING: MCP not configured")
         click.echo("      Run: docrag mcp-config")
     
     # Summary

@@ -6,6 +6,8 @@
 
 Universal RAG (Retrieval-Augmented Generation) system for project documentation. Quickly add AI-powered semantic search to any project.
 
+**Обновление:** Если у вас уже установлен DocRAG Kit, см. [UPGRADE.md](UPGRADE.md) для обновления до новой версии с дополнительными возможностями.
+
 ## Features
 
 - **Quick Setup** - Initialize RAG system in any project with one command
@@ -16,6 +18,8 @@ Universal RAG (Retrieval-Augmented Generation) system for project documentation.
 - **Secure** - API keys stored safely in .env files
 
 ## Installation
+
+> **Обновление существующих проектов:** См. [UPGRADE.md](UPGRADE.md) для быстрого обновления
 
 ### Requirements
 
@@ -183,6 +187,9 @@ Display version information.
 
 ### `docrag update`
 Update DocRAG configuration and MCP server for existing projects. Use this after upgrading the package to get new features.
+
+### `docrag fix-database`
+Fix database permission and corruption issues. Use this when encountering "readonly database" errors or other database problems.
 
 ### `docrag --help`
 Display help information.
@@ -448,7 +455,22 @@ See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for detailed solutions to
 - MCP connection issues
 - Performance optimization
 
+For database-specific issues, see [docs/DATABASE_TROUBLESHOOTING.md](docs/DATABASE_TROUBLESHOOTING.md):
+- "Readonly database" errors
+- Database corruption
+- Permission issues
+- Lock file problems
+
 Quick fixes:
+
+**Database Issues (Readonly Database, Corruption)**
+```bash
+# Automatic fix for most database problems
+docrag fix-database
+
+# Manual fix if needed
+rm -rf .docrag/vectordb && docrag index
+```
 
 **Database Not Found**
 ```bash
