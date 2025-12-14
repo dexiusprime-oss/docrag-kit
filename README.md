@@ -558,6 +558,17 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Changelog
 
+### 0.1.6 (2024-12-14)
+- **NEW**: Added `reindex_docs` MCP tool for smart reindexing with automatic change detection
+- **NEW**: Added `docrag debug-mcp` command to diagnose CLI vs MCP synchronization issues
+- **NEW**: Added `docrag fix-database` command for database permission and corruption issues
+- **NEW**: Added `docrag update` command for upgrading existing projects
+- **FIX**: Fixed critical CLI/MCP synchronization issue where different databases were accessed
+- **IMPROVEMENT**: Enhanced MCP configuration with correct working directory paths
+- **IMPROVEMENT**: Added comprehensive documentation for troubleshooting
+- **IMPROVEMENT**: Added debug logging to MCP server for path diagnostics
+- This resolves issues where CLI shows many documents but MCP shows only few
+
 ### 0.1.5 (2024-12-09)
 - **FIX**: Added `docrag fix-prompt` command to fix prompt templates missing required placeholders
 - **FIX**: Added validation for prompt template placeholders (`{context}` and `{question}`)
