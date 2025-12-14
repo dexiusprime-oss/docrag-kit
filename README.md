@@ -6,7 +6,7 @@
 
 Universal RAG (Retrieval-Augmented Generation) system for project documentation. Quickly add AI-powered semantic search to any project.
 
-**Обновление:** Если у вас уже установлен DocRAG Kit, см. [UPGRADE.md](UPGRADE.md) для обновления до новой версии с дополнительными возможностями.
+**Обновление:** Если у вас уже установлен DocRAG Kit, см. [UPDATE.md](UPDATE.md) для быстрого обновления.
 
 ## Features
 
@@ -19,7 +19,7 @@ Universal RAG (Retrieval-Augmented Generation) system for project documentation.
 
 ## Installation
 
-> **Обновление существующих проектов:** См. [UPGRADE.md](UPGRADE.md) для быстрого обновления
+> **Обновление существующих проектов:** См. [UPDATE.md](UPDATE.md) для быстрого обновления
 
 ### Requirements
 

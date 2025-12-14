@@ -607,6 +607,8 @@ def mcp_config(non_interactive, update):
                 click.echo("\nNOTE: Configuration added to workspace config (.kiro/settings/mcp.json)")
                 click.echo("   This makes the MCP server available only in this workspace")
                 click.echo("   To make it available globally, add to: ~/.kiro/settings/mcp.json")
+                click.echo(f"\nIMPORTANT: MCP server will run from: {project_root}")
+                click.echo("   This ensures MCP and CLI use the same database")
         
         except Exception as e:
             click.echo(f"   ERROR: Error adding configuration: {e}")
@@ -940,6 +942,148 @@ def fix_database():
 
 
 @cli.command()
+def debug_mcp():
+    """Debug MCP server paths and synchronization issues."""
+    from pathlib import Path
+    import json
+    from .config_manager import ConfigManager
+    
+    project_root = Path.cwd()
+    
+    click.echo("MCP DEBUG: Diagnosing MCP server paths and synchronization...\n")
+    
+    # Check if DocRAG is initialized
+    docrag_dir = project_root / ".docrag"
+    if not docrag_dir.exists():
+        click.echo("ERROR: DocRAG not initialized in this project")
+        click.echo("   Run 'docrag init' first")
+        return
+    
+    click.echo(f"Current project directory: {project_root}")
+    click.echo(f"DocRAG config directory: {docrag_dir}")
+    
+    # Check CLI database
+    click.echo("\n1. CLI Database Status:")
+    try:
+        config_manager = ConfigManager(project_root)
+        config = config_manager.load_config()
+        
+        if config:
+            from .vector_db import VectorDBManager
+            config_dict = config.to_dict()
+            vector_db = VectorDBManager(config_dict, project_root)
+            
+            try:
+                cli_docs = vector_db.list_documents()
+                click.echo(f"   CLI sees: {len(cli_docs)} documents")
+                if cli_docs:
+                    click.echo("   Sample documents:")
+                    for doc in cli_docs[:5]:
+                        click.echo(f"      • {doc}")
+                    if len(cli_docs) > 5:
+                        click.echo(f"      ... and {len(cli_docs) - 5} more")
+            except Exception as e:
+                click.echo(f"   ERROR: Cannot access CLI database: {e}")
+        else:
+            click.echo("   ERROR: Cannot load configuration")
+    except Exception as e:
+        click.echo(f"   ERROR: CLI check failed: {e}")
+    
+    # Check MCP configuration
+    click.echo("\n2. MCP Configuration:")
+    workspace_mcp = project_root / ".kiro" / "settings" / "mcp.json"
+    user_mcp = Path.home() / ".kiro" / "settings" / "mcp.json"
+    
+    mcp_found = False
+    mcp_working_dir = None
+    
+    if workspace_mcp.exists():
+        click.echo(f"   Workspace MCP config: {workspace_mcp}")
+        try:
+            with open(workspace_mcp) as f:
+                mcp_data = json.load(f)
+                if "mcpServers" in mcp_data and "docrag" in mcp_data["mcpServers"]:
+                    mcp_found = True
+                    docrag_config = mcp_data["mcpServers"]["docrag"]
+                    mcp_working_dir = docrag_config.get("cwd", "NOT SET")
+                    click.echo(f"   MCP working directory: {mcp_working_dir}")
+                    click.echo(f"   MCP command: {docrag_config.get('command', 'NOT SET')}")
+                    click.echo(f"   MCP args: {docrag_config.get('args', 'NOT SET')}")
+                else:
+                    click.echo("   WARNING: docrag server not found in workspace config")
+        except Exception as e:
+            click.echo(f"   ERROR: Cannot read workspace MCP config: {e}")
+    else:
+        click.echo("   INFO: No workspace MCP config")
+    
+    if user_mcp.exists():
+        click.echo(f"   User MCP config: {user_mcp}")
+        try:
+            with open(user_mcp) as f:
+                user_mcp_data = json.load(f)
+                if "mcpServers" in user_mcp_data and "docrag" in user_mcp_data["mcpServers"]:
+                    if not mcp_found:
+                        mcp_found = True
+                        user_docrag_config = user_mcp_data["mcpServers"]["docrag"]
+                        mcp_working_dir = user_docrag_config.get("cwd", "NOT SET")
+                        click.echo(f"   User MCP working directory: {mcp_working_dir}")
+                    else:
+                        click.echo("   INFO: User config exists but workspace config takes precedence")
+        except Exception as e:
+            click.echo(f"   ERROR: Cannot read user MCP config: {e}")
+    else:
+        click.echo("   INFO: No user MCP config")
+    
+    # Check path mismatch
+    click.echo("\n3. Path Analysis:")
+    if mcp_working_dir and mcp_working_dir != "NOT SET":
+        if Path(mcp_working_dir) == project_root:
+            click.echo("   SUCCESS: MCP working directory matches current project")
+        else:
+            click.echo("   ERROR: PATH MISMATCH DETECTED!")
+            click.echo(f"      MCP working directory: {mcp_working_dir}")
+            click.echo(f"      Current project:       {project_root}")
+            click.echo("   This explains why MCP sees different data than CLI!")
+    else:
+        click.echo("   ERROR: MCP working directory not configured")
+    
+    # Test MCP server access
+    click.echo("\n4. MCP Server Test:")
+    if mcp_found:
+        try:
+            from .mcp_server import MCPServer
+            # Try to create MCP server in current directory
+            mcp_server = MCPServer(project_root)
+            mcp_docs = mcp_server.vector_db.list_documents()
+            click.echo(f"   MCP server sees: {len(mcp_docs)} documents")
+            
+            if mcp_docs:
+                click.echo("   Sample MCP documents:")
+                for doc in mcp_docs[:5]:
+                    click.echo(f"      • {doc}")
+        except Exception as e:
+            click.echo(f"   ERROR: Cannot test MCP server: {e}")
+    else:
+        click.echo("   SKIPPED: MCP not configured")
+    
+    # Recommendations
+    click.echo("\n" + "=" * 60)
+    click.echo("\nRECOMMENDATIONS:")
+    
+    if mcp_working_dir and Path(mcp_working_dir) != project_root:
+        click.echo("CRITICAL: Fix MCP working directory mismatch")
+        click.echo(f"   1. Update MCP config to use: {project_root}")
+        click.echo("   2. Run: docrag mcp-config --update")
+        click.echo("   3. Restart Kiro IDE")
+    elif not mcp_found:
+        click.echo("SETUP: Configure MCP server")
+        click.echo("   1. Run: docrag mcp-config")
+        click.echo("   2. Restart Kiro IDE")
+    else:
+        click.echo("INFO: Run 'docrag fix-database' if issues persist")
+
+
+@cli.command()
 def doctor():
     """Diagnose DocRAG installation and configuration issues."""
     from pathlib import Path
@@ -1077,12 +1221,47 @@ def doctor():
         except Exception as e:
             click.echo(f"   ERROR: Database check failed: {e}")
     
-    # Check 8: MCP configuration
+    # Check 8: CLI vs MCP synchronization
+    click.echo("\nChecking CLI vs MCP synchronization...")
+    try:
+        # Check CLI database
+        cli_docs = vector_db.list_documents()
+        cli_count = len(cli_docs)
+        click.echo(f"   CLI database: {cli_count} documents")
+        
+        # Try to simulate MCP access
+        try:
+            from .mcp_server import MCPServer
+            mcp_server = MCPServer(project_root)
+            mcp_docs = mcp_server.vector_db.list_documents()
+            mcp_count = len(mcp_docs)
+            click.echo(f"   MCP database: {mcp_count} documents")
+            
+            if cli_count != mcp_count:
+                critical_issues.append(f"CLI/MCP sync issue: CLI has {cli_count} docs, MCP has {mcp_count}")
+                click.echo(f"   ERROR: Synchronization issue detected!")
+                click.echo(f"      CLI sees {cli_count} documents")
+                click.echo(f"      MCP sees {mcp_count} documents")
+            else:
+                click.echo("   SUCCESS: CLI and MCP are synchronized")
+                
+        except Exception as mcp_error:
+            warnings_found.append(f"Could not test MCP access: {mcp_error}")
+            click.echo(f"   WARNING: Could not test MCP access: {mcp_error}")
+            
+    except Exception as e:
+        warnings_found.append(f"Could not check CLI/MCP sync: {e}")
+        click.echo(f"   WARNING: Could not check synchronization: {e}")
+    
+    # Check 9: MCP configuration
     click.echo("\nChecking MCP configuration...")
     workspace_mcp = project_root / ".kiro" / "settings" / "mcp.json"
     user_mcp = Path.home() / ".kiro" / "settings" / "mcp.json"
     
     mcp_configured = False
+    mcp_working_dir = None
+    
+    # Check workspace MCP config
     if workspace_mcp.exists():
         click.echo("   SUCCESS: Workspace MCP config exists")
         mcp_configured = True
@@ -1092,6 +1271,22 @@ def doctor():
                 mcp_data = json.load(f)
                 if "mcpServers" in mcp_data and "docrag" in mcp_data["mcpServers"]:
                     click.echo("      SUCCESS: docrag server configured")
+                    
+                    # Check working directory
+                    docrag_config = mcp_data["mcpServers"]["docrag"]
+                    if "cwd" in docrag_config:
+                        mcp_working_dir = docrag_config["cwd"]
+                        click.echo(f"      Working directory: {mcp_working_dir}")
+                        
+                        # Verify working directory matches current project
+                        if Path(mcp_working_dir) != project_root:
+                            critical_issues.append("MCP working directory mismatch")
+                            click.echo(f"      ERROR: MCP working directory mismatch!")
+                            click.echo(f"         MCP uses: {mcp_working_dir}")
+                            click.echo(f"         Current:  {project_root}")
+                    else:
+                        warnings_found.append("MCP working directory not specified")
+                        click.echo("      WARNING: No working directory specified")
                 else:
                     warnings_found.append("docrag server not found in MCP config")
                     click.echo("      WARNING: docrag server not configured")
@@ -1099,9 +1294,25 @@ def doctor():
             warnings_found.append(f"Failed to read MCP config: {e}")
             click.echo(f"      WARNING: Failed to read config: {e}")
     
+    # Check user MCP config
     if user_mcp.exists():
         click.echo("   INFO: User MCP config exists")
         mcp_configured = True
+        try:
+            import json
+            with open(user_mcp) as f:
+                user_mcp_data = json.load(f)
+                if "mcpServers" in user_mcp_data and "docrag" in user_mcp_data["mcpServers"]:
+                    user_docrag_config = user_mcp_data["mcpServers"]["docrag"]
+                    if "cwd" in user_docrag_config:
+                        user_mcp_dir = user_docrag_config["cwd"]
+                        click.echo(f"      User MCP working directory: {user_mcp_dir}")
+                        
+                        if Path(user_mcp_dir) != project_root:
+                            warnings_found.append("User MCP config points to different project")
+                            click.echo(f"      WARNING: User MCP points to different project")
+        except Exception as e:
+            click.echo(f"      INFO: Could not read user MCP config: {e}")
     
     if not mcp_configured:
         warnings_found.append("MCP not configured")

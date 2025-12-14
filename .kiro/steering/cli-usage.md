@@ -62,6 +62,15 @@ docrag fix-database
 # It automatically fixes permissions and removes lock files without prompts
 ```
 
+### `docrag debug-mcp`
+```bash
+# Debug CLI vs MCP synchronization issues (no interaction needed)
+docrag debug-mcp
+
+# Diagnoses path mismatches between CLI and MCP server
+# Shows working directories, document counts, and configuration issues
+```
+
 ## Summary
 
 - **Always add `--non-interactive` to `docrag init`**
@@ -71,5 +80,6 @@ docrag fix-database
 - **`docrag reindex` - no flags needed, automatically rebuilds**
 - **`docrag update` - no flags needed, updates existing projects**
 - **`docrag fix-database` - may prompt for confirmation on database rebuild**
+- **`docrag debug-mcp` - no flags needed, diagnoses CLI/MCP sync issues**
 - **Never use `docrag config --edit` in automated contexts**
 - **Use `docrag config` (without --edit) to view configuration**

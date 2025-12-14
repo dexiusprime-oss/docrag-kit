@@ -64,6 +64,13 @@ class MCPServer:
         else:
             self.project_root = Path.cwd()
         
+        # Debug: Log paths for troubleshooting
+        import sys
+        print(f"DEBUG MCP: Current working directory: {Path.cwd()}", file=sys.stderr)
+        print(f"DEBUG MCP: Project root: {self.project_root}", file=sys.stderr)
+        print(f"DEBUG MCP: Config path: {self.project_root / '.docrag' / 'config.yaml'}", file=sys.stderr)
+        print(f"DEBUG MCP: Vector DB path: {self.project_root / '.docrag' / 'vectordb'}", file=sys.stderr)
+        
         # Load environment variables
         load_dotenv(self.project_root / ".env")
         
