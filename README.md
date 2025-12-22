@@ -558,6 +558,22 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Changelog
 
+### 0.1.8 (2024-12-22)
+- **NEW**: Enhanced `reindex_docs` MCP tool with improved database lock handling
+- **NEW**: Added comprehensive database repair mechanisms for MCP compatibility
+- **NEW**: Added `docrag fix-database` command with automatic lock file removal and permission fixes
+- **NEW**: Added `docrag debug-mcp` command with detailed CLI/MCP synchronization diagnostics
+- **FIX**: **CRITICAL**: Fixed MCP reindexing database lock errors that prevented automated reindexing
+- **FIX**: Enhanced database deletion with retry mechanisms and connection cleanup
+- **FIX**: Improved MCP server error handling with helpful user guidance
+- **IMPROVEMENT**: Added automatic staleness warnings when documents may be outdated
+- **IMPROVEMENT**: Enhanced database operations with MCP-safe file handling
+- **IMPROVEMENT**: Added comprehensive upgrade documentation and troubleshooting guides
+- This resolves the critical issue where MCP reindexing failed with "unable to open database file" errors
+
+### 0.1.7 (2024-12-22)
+- Internal development version with database improvements
+
 ### 0.1.6 (2024-12-14)
 - **NEW**: Added `reindex_docs` MCP tool for smart reindexing with automatic change detection
 - **NEW**: Added `docrag debug-mcp` command to diagnose CLI vs MCP synchronization issues

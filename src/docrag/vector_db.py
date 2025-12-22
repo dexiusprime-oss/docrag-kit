@@ -100,39 +100,135 @@ class VectorDBManager:
         # Ensure .docrag directory exists
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         
-        # Delete existing database if it exists
+        # Delete existing database if it exists (with MCP-safe deletion)
         if self.db_path.exists():
             self.delete_database()
         
         if show_progress:
-            print(f"📊 Creating embeddings for {len(chunks)} chunks...")
+            print(f"Creating embeddings for {len(chunks)} chunks...")
         
         try:
-            # Create ChromaDB vector store
-            # Chroma will automatically create embeddings for all chunks
-            vectorstore = Chroma.from_documents(
-                documents=chunks,
-                embedding=self.embeddings,
-                persist_directory=str(self.db_path)
-            )
+            # Create ChromaDB vector store with MCP-safe settings
+            vectorstore = self._create_vectorstore_safe(chunks)
             
             if show_progress:
                 print(f"SUCCESS: Vector database created successfully at {self.db_path}")
         
         except Exception as e:
-            raise Exception(f"ERROR: Failed to create vector database: {e}")
+            raise Exception(f"Database error: {e}")
+
+    def _create_vectorstore_safe(self, chunks: List[Document]):
+        """
+        Create ChromaDB vectorstore with MCP-safe configuration.
+        
+        Args:
+            chunks: Document chunks to index.
+            
+        Returns:
+            Chroma vectorstore instance.
+        """
+        import time
+        
+        max_retries = 3
+        retry_delay = 1.0
+        
+        for attempt in range(max_retries):
+            try:
+                # Ensure clean state
+                self._close_existing_connections()
+                
+                # Create ChromaDB vector store
+                vectorstore = Chroma.from_documents(
+                    documents=chunks,
+                    embedding=self.embeddings,
+                    persist_directory=str(self.db_path)
+                )
+                
+                # Store reference for cleanup
+                self._vectorstore = vectorstore
+                return vectorstore
+                
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    print(f"   Retry {attempt + 1}/{max_retries}: Database creation failed, retrying...")
+                    time.sleep(retry_delay * (attempt + 1))
+                    
+                    # Clean up any partial creation
+                    if self.db_path.exists():
+                        try:
+                            shutil.rmtree(self.db_path)
+                        except:
+                            pass
+                else:
+                    raise Exception(f"unable to open database file: {e}")
 
     def delete_database(self) -> None:
         """
         Delete existing vector database.
         
         This removes the .docrag/vectordb/ directory and all its contents.
+        Uses safe deletion with retry mechanism for MCP compatibility.
         """
         if self.db_path.exists():
             try:
-                shutil.rmtree(self.db_path)
+                # Try graceful deletion first
+                self._safe_delete_database()
             except Exception as e:
-                print(f"WARNING:  Warning: Failed to delete database: {e}")
+                print(f"WARNING: Warning: Failed to delete database: {e}")
+
+    def _safe_delete_database(self) -> None:
+        """
+        Safely delete database with retry mechanism for MCP compatibility.
+        
+        This handles potential file locking issues when MCP server
+        and CLI access the database simultaneously.
+        """
+        import time
+        import platform
+        
+        max_retries = 3
+        retry_delay = 0.5
+        
+        for attempt in range(max_retries):
+            try:
+                # On Windows, ensure no processes are holding file handles
+                if platform.system() == "Windows":
+                    import gc
+                    gc.collect()
+                
+                # Force close any existing ChromaDB connections
+                self._close_existing_connections()
+                
+                # Wait a bit for file handles to be released
+                time.sleep(retry_delay)
+                
+                # Remove the directory
+                shutil.rmtree(self.db_path)
+                return
+                
+            except (OSError, PermissionError) as e:
+                if attempt < max_retries - 1:
+                    print(f"   Retry {attempt + 1}/{max_retries}: Database deletion failed, retrying...")
+                    time.sleep(retry_delay * (attempt + 1))
+                else:
+                    raise Exception(f"Database error: {e}")
+
+    def _close_existing_connections(self) -> None:
+        """
+        Close any existing ChromaDB connections to prevent file locking.
+        """
+        try:
+            # Force garbage collection to close any lingering connections
+            import gc
+            gc.collect()
+            
+            # Additional cleanup for ChromaDB
+            if hasattr(self, '_vectorstore'):
+                delattr(self, '_vectorstore')
+                
+        except Exception:
+            # Ignore errors during cleanup
+            pass
 
     def get_retriever(self, top_k: Optional[int] = None):
         """

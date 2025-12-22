@@ -557,7 +557,7 @@ class MCPServer:
 
     async def _perform_full_reindex(self, reason: str) -> str:
         """
-        Perform full reindexing operation.
+        Perform full reindexing operation with MCP-safe database handling.
         
         Args:
             reason: Reason for reindexing (for user feedback).
@@ -567,8 +567,15 @@ class MCPServer:
         """
         try:
             from .document_processor import DocumentProcessor
+            import time
             
-            # Delete old database if it exists
+            # Close any existing database connections first
+            self.vector_db._close_existing_connections()
+            
+            # Wait a moment for connections to close
+            time.sleep(0.5)
+            
+            # Delete old database if it exists (with safe deletion)
             db_path = self.project_root / ".docrag" / "vectordb"
             if db_path.exists():
                 self.vector_db.delete_database()
@@ -580,7 +587,7 @@ class MCPServer:
             if stats['files_found'] == 0:
                 return "REINDEX: No files found to index.\n   Check your configuration directories and extensions."
             
-            # Create new database
+            # Create new database with MCP-safe method
             self.vector_db.create_database(chunks, show_progress=False)
             
             # Reset cached QA chain to use new database
@@ -594,7 +601,15 @@ class MCPServer:
                    f"   Total characters: {stats['total_characters']:,}")
         
         except Exception as e:
-            raise ValueError(f"Reindexing operation failed: {str(e)}")
+            error_msg = str(e)
+            
+            # Provide helpful error message for common database issues
+            if "unable to open database file" in error_msg or "database is locked" in error_msg:
+                return (f"REINDEX: Database access error - this can happen when CLI and MCP access the database simultaneously.\n"
+                       f"   Try running 'docrag reindex' in terminal instead, or wait a moment and retry.\n"
+                       f"   Technical details: {error_msg}")
+            
+            raise ValueError(f"Reindexing operation failed: {error_msg}")
 
     async def _check_database_staleness(self) -> str:
         """

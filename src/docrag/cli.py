@@ -1096,6 +1096,277 @@ def debug_mcp():
         click.echo("INFO: Run 'docrag fix-database' if issues persist")
 
 
+@cli.command("fix-database")
+@click.option("--force", is_flag=True, help="Force rebuild without confirmation")
+def fix_database(force):
+    """Fix database permission and corruption issues."""
+    from pathlib import Path
+    import os
+    import stat
+    from .config_manager import ConfigManager
+    
+    project_root = Path.cwd()
+    
+    # Check if DocRAG is initialized
+    docrag_dir = project_root / ".docrag"
+    if not docrag_dir.exists():
+        click.echo("ERROR: DocRAG not initialized in this project")
+        click.echo("   Run 'docrag init' first")
+        return
+    
+    click.echo("DATABASE: Diagnosing database issues...\n")
+    
+    # Check database directory
+    db_path = docrag_dir / "vectordb"
+    issues_found = []
+    
+    if not db_path.exists():
+        click.echo("INFO: No database found - this is normal for new projects")
+        click.echo("   Run 'docrag index' to create initial database")
+        return
+    
+    # Check permissions
+    try:
+        # Test read permission
+        if not os.access(db_path, os.R_OK):
+            issues_found.append("Database directory not readable")
+        
+        # Test write permission
+        if not os.access(db_path, os.W_OK):
+            issues_found.append("Database directory not writable")
+        
+        # Check for lock files
+        lock_files = list(db_path.rglob("*.lock"))
+        if lock_files:
+            issues_found.append(f"Found {len(lock_files)} lock file(s)")
+            for lock_file in lock_files:
+                click.echo(f"   Lock file: {lock_file}")
+        
+        # Check for corrupted files
+        db_files = list(db_path.rglob("*"))
+        if len(db_files) < 3:  # ChromaDB should have multiple files
+            issues_found.append("Database appears incomplete or corrupted")
+        
+    except Exception as e:
+        issues_found.append(f"Permission check failed: {e}")
+    
+    if not issues_found:
+        click.echo("SUCCESS: Database appears healthy")
+        click.echo(f"   Location: {db_path}")
+        click.echo(f"   Files: {len(list(db_path.rglob('*')))} files found")
+        return
+    
+    # Report issues
+    click.echo(f"ISSUES: Found {len(issues_found)} issue(s):")
+    for issue in issues_found:
+        click.echo(f"   • {issue}")
+    
+    # Offer fixes
+    click.echo("\nFIXES: Available fixes:")
+    
+    # Fix permissions
+    if "not readable" in str(issues_found) or "not writable" in str(issues_found):
+        click.echo("1. Fix permissions...")
+        try:
+            # Make directory readable and writable
+            os.chmod(db_path, stat.S_IRWXU | stat.S_IRGRP | stat.S_IROTH)
+            for file_path in db_path.rglob("*"):
+                if file_path.is_file():
+                    os.chmod(file_path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
+            click.echo("   SUCCESS: Permissions fixed")
+        except Exception as e:
+            click.echo(f"   ERROR: Failed to fix permissions: {e}")
+    
+    # Remove lock files
+    lock_files = list(db_path.rglob("*.lock"))
+    if lock_files:
+        click.echo("2. Remove lock files...")
+        for lock_file in lock_files:
+            try:
+                lock_file.unlink()
+                click.echo(f"   SUCCESS: Removed {lock_file.name}")
+            except Exception as e:
+                click.echo(f"   ERROR: Failed to remove {lock_file.name}: {e}")
+    
+    # Offer database rebuild for corruption
+    if "corrupted" in str(issues_found) or "incomplete" in str(issues_found):
+        if force or click.confirm("3. Database appears corrupted. Rebuild from source files?"):
+            click.echo("3. Rebuilding database...")
+            try:
+                # Load configuration
+                config_manager = ConfigManager(project_root)
+                config = config_manager.load_config()
+                
+                if config is None:
+                    click.echo("   ERROR: Configuration not found")
+                    return
+                
+                # Rebuild database
+                from .document_processor import DocumentProcessor
+                from .vector_db import VectorDBManager
+                
+                config_dict = config.to_dict()
+                doc_processor = DocumentProcessor(config_dict)
+                vector_db = VectorDBManager(config_dict, project_root)
+                
+                # Delete corrupted database
+                vector_db.delete_database()
+                
+                # Rebuild from source
+                chunks, stats = doc_processor.process(project_root)
+                vector_db.create_database(chunks, show_progress=True)
+                
+                click.echo("   SUCCESS: Database rebuilt successfully")
+                click.echo(f"   Files processed: {stats['files_processed']}")
+                click.echo(f"   Chunks created: {stats['chunks_created']}")
+                
+            except Exception as e:
+                click.echo(f"   ERROR: Database rebuild failed: {e}")
+    
+    click.echo("\nNEXT STEPS:")
+    click.echo("1. Test MCP reindexing: Use 'reindex_docs' tool in Kiro")
+    click.echo("2. If issues persist: Run 'docrag debug-mcp' for CLI/MCP sync diagnosis")
+
+
+@cli.command("debug-mcp")
+def debug_mcp():
+    """Debug CLI vs MCP synchronization issues."""
+    from pathlib import Path
+    import os
+    import json
+    from .config_manager import ConfigManager
+    
+    project_root = Path.cwd()
+    
+    click.echo("MCP DEBUG: Diagnosing CLI vs MCP synchronization...\n")
+    
+    # Check DocRAG initialization
+    docrag_dir = project_root / ".docrag"
+    if not docrag_dir.exists():
+        click.echo("ERROR: DocRAG not initialized in this project")
+        return
+    
+    # Check configuration
+    config_manager = ConfigManager(project_root)
+    config = config_manager.load_config()
+    
+    if config is None:
+        click.echo("ERROR: Configuration not found")
+        return
+    
+    click.echo("1. PROJECT PATHS:")
+    click.echo(f"   Current directory: {project_root}")
+    click.echo(f"   DocRAG config: {config_manager.config_path}")
+    click.echo(f"   Database path: {docrag_dir / 'vectordb'}")
+    
+    # Check MCP configuration
+    click.echo("\n2. MCP CONFIGURATION:")
+    workspace_mcp = project_root / ".kiro" / "settings" / "mcp.json"
+    user_mcp = Path.home() / ".kiro" / "settings" / "mcp.json"
+    
+    mcp_found = False
+    
+    if workspace_mcp.exists():
+        click.echo(f"   Workspace MCP: {workspace_mcp}")
+        try:
+            with open(workspace_mcp) as f:
+                mcp_data = json.load(f)
+                if "mcpServers" in mcp_data and "docrag" in mcp_data["mcpServers"]:
+                    server_config = mcp_data["mcpServers"]["docrag"]
+                    click.echo(f"   Command: {server_config.get('command', 'N/A')}")
+                    click.echo(f"   Working dir: {server_config.get('cwd', 'N/A')}")
+                    mcp_found = True
+                else:
+                    click.echo("   WARNING: docrag server not found in workspace config")
+        except Exception as e:
+            click.echo(f"   ERROR: Failed to read workspace MCP config: {e}")
+    
+    if user_mcp.exists():
+        click.echo(f"   User MCP: {user_mcp}")
+        mcp_found = True
+    
+    if not mcp_found:
+        click.echo("   ERROR: No MCP configuration found")
+        click.echo("   Run: docrag mcp-config")
+    
+    # Check database status
+    click.echo("\n3. DATABASE STATUS:")
+    db_path = docrag_dir / "vectordb"
+    
+    if db_path.exists():
+        try:
+            from .vector_db import VectorDBManager
+            vector_db = VectorDBManager(config.to_dict(), project_root)
+            documents = vector_db.list_documents()
+            click.echo(f"   Status: EXISTS")
+            click.echo(f"   Documents: {len(documents)} files indexed")
+            click.echo(f"   Size: {sum(f.stat().st_size for f in db_path.rglob('*') if f.is_file()) / 1024 / 1024:.1f} MB")
+        except Exception as e:
+            click.echo(f"   Status: ERROR - {e}")
+    else:
+        click.echo("   Status: NOT FOUND")
+        click.echo("   Run: docrag index")
+    
+    # Check environment
+    click.echo("\n4. ENVIRONMENT:")
+    env_path = project_root / ".env"
+    if env_path.exists():
+        click.echo(f"   .env file: EXISTS")
+        # Check API keys without exposing them
+        from dotenv import load_dotenv
+        load_dotenv(env_path)
+        
+        openai_key = os.getenv('OPENAI_API_KEY')
+        google_key = os.getenv('GOOGLE_API_KEY')
+        
+        if openai_key:
+            click.echo(f"   OpenAI key: SET ({len(openai_key)} chars)")
+        if google_key:
+            click.echo(f"   Google key: SET ({len(google_key)} chars)")
+        
+        if not openai_key and not google_key:
+            click.echo("   WARNING: No API keys found")
+    else:
+        click.echo("   .env file: NOT FOUND")
+    
+    # Check for common issues
+    click.echo("\n5. COMMON ISSUES:")
+    issues = []
+    
+    # Path mismatch
+    if mcp_found:
+        try:
+            with open(workspace_mcp) as f:
+                mcp_data = json.load(f)
+                server_cwd = mcp_data["mcpServers"]["docrag"].get("cwd")
+                if server_cwd and Path(server_cwd) != project_root:
+                    issues.append(f"MCP working directory mismatch: {server_cwd} vs {project_root}")
+        except:
+            pass
+    
+    # Database permissions
+    if db_path.exists() and not os.access(db_path, os.W_OK):
+        issues.append("Database directory not writable")
+    
+    # Lock files
+    if db_path.exists():
+        lock_files = list(db_path.rglob("*.lock"))
+        if lock_files:
+            issues.append(f"Database lock files found: {len(lock_files)}")
+    
+    if issues:
+        for issue in issues:
+            click.echo(f"   • {issue}")
+        click.echo("\n   Run: docrag fix-database")
+    else:
+        click.echo("   No common issues detected")
+    
+    click.echo("\nRECOMMENDATIONS:")
+    click.echo("1. If MCP reindexing fails: Run 'docrag fix-database'")
+    click.echo("2. If CLI works but MCP doesn't: Check MCP working directory")
+    click.echo("3. If both fail: Check API keys and database permissions")
+
+
 @cli.command()
 def doctor():
     """Diagnose DocRAG installation and configuration issues."""
