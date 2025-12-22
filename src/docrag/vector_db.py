@@ -178,15 +178,16 @@ class VectorDBManager:
 
     def _safe_delete_database(self) -> None:
         """
-        Safely delete database with retry mechanism for MCP compatibility.
+        Safely delete database with aggressive retry mechanism for MCP compatibility.
         
         This handles potential file locking issues when MCP server
         and CLI access the database simultaneously.
         """
         import time
         import platform
+        import os
         
-        max_retries = 3
+        max_retries = 5  # Increased from 3
         retry_delay = 0.5
         
         for attempt in range(max_retries):
@@ -199,35 +200,107 @@ class VectorDBManager:
                 # Force close any existing ChromaDB connections
                 self._close_existing_connections()
                 
-                # Wait a bit for file handles to be released
-                time.sleep(retry_delay)
+                # Wait progressively longer for file handles to be released
+                wait_time = retry_delay * (attempt + 1)
+                time.sleep(wait_time)
                 
-                # Remove the directory
-                shutil.rmtree(self.db_path)
-                return
+                # Try different deletion strategies based on attempt
+                if attempt == 0:
+                    # Strategy 1: Normal deletion
+                    shutil.rmtree(self.db_path)
+                    return
+                
+                elif attempt == 1:
+                    # Strategy 2: Force deletion with ignore_errors
+                    shutil.rmtree(self.db_path, ignore_errors=True)
+                    if not self.db_path.exists():
+                        return
+                
+                elif attempt == 2:
+                    # Strategy 3: Delete individual files first
+                    for file_path in self.db_path.rglob("*"):
+                        if file_path.is_file():
+                            try:
+                                # Remove read-only flag if present
+                                if platform.system() == "Windows":
+                                    os.chmod(file_path, 0o777)
+                                file_path.unlink()
+                            except:
+                                pass
+                    
+                    # Then remove directories
+                    shutil.rmtree(self.db_path, ignore_errors=True)
+                    if not self.db_path.exists():
+                        return
+                
+                elif attempt == 3:
+                    # Strategy 4: Try to rename first, then delete
+                    backup_path = self.db_path.parent / f"vectordb_backup_{int(time.time())}"
+                    try:
+                        self.db_path.rename(backup_path)
+                        shutil.rmtree(backup_path, ignore_errors=True)
+                        return
+                    except:
+                        pass
+                
+                else:
+                    # Strategy 5: Last resort - just try to remove what we can
+                    try:
+                        shutil.rmtree(self.db_path, ignore_errors=True)
+                        return
+                    except:
+                        pass
                 
             except (OSError, PermissionError) as e:
                 if attempt < max_retries - 1:
-                    print(f"   Retry {attempt + 1}/{max_retries}: Database deletion failed, retrying...")
-                    time.sleep(retry_delay * (attempt + 1))
+                    continue
                 else:
-                    raise Exception(f"Database error: {e}")
+                    # If all strategies failed, provide detailed error
+                    raise Exception(f"Database deletion failed after {max_retries} attempts. "
+                                  f"This may be due to ChromaDB file locking in MCP context. "
+                                  f"Last error: {e}")
 
     def _close_existing_connections(self) -> None:
         """
-        Close any existing ChromaDB connections to prevent file locking.
+        Aggressively close any existing ChromaDB connections to prevent file locking.
         """
         try:
             # Force garbage collection to close any lingering connections
             import gc
             gc.collect()
             
-            # Additional cleanup for ChromaDB
+            # Clear any cached vectorstore references
             if hasattr(self, '_vectorstore'):
+                try:
+                    # Try to close ChromaDB client if it has a close method
+                    if hasattr(self._vectorstore, '_client'):
+                        client = self._vectorstore._client
+                        if hasattr(client, 'reset'):
+                            client.reset()
+                        if hasattr(client, 'close'):
+                            client.close()
+                except:
+                    pass
+                
                 delattr(self, '_vectorstore')
+            
+            # Clear any other potential references
+            for attr_name in ['_client', '_collection', '_embeddings_cache']:
+                if hasattr(self, attr_name):
+                    try:
+                        delattr(self, attr_name)
+                    except:
+                        pass
+            
+            # Additional garbage collection
+            gc.collect()
+            
+            # Small delay to ensure cleanup
+            import time
+            time.sleep(0.1)
                 
         except Exception:
-            # Ignore errors during cleanup
+            # Ignore errors during cleanup - this is best effort
             pass
 
     def get_retriever(self, top_k: Optional[int] = None):

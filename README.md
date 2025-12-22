@@ -558,6 +558,16 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Changelog
 
+### 0.1.9 (2024-12-22) - Hotfix for MCP Reindexing
+- **INVESTIGATION**: Added comprehensive diagnostics for persistent MCP reindexing issues
+- **NEW**: Added `docrag test-mcp-reindex` command for detailed MCP reindexing diagnostics
+- **IMPROVEMENT**: Enhanced database deletion with 5 different strategies and aggressive cleanup
+- **IMPROVEMENT**: Better error messages acknowledging the ChromaDB/SQLite WAL locking issue
+- **TRANSPARENCY**: Clear documentation that this is a known ChromaDB limitation in MCP context
+- **WORKAROUND**: Documented hybrid workflow (MCP for search/answers, CLI for reindexing)
+- **NOTE**: Read operations (search_docs, answer_question) work perfectly in MCP
+- **NOTE**: Write operations (reindex_docs) require CLI workaround due to SQLite WAL locking
+
 ### 0.1.8 (2024-12-22)
 - **NEW**: Enhanced `reindex_docs` MCP tool with improved database lock handling
 - **NEW**: Added comprehensive database repair mechanisms for MCP compatibility

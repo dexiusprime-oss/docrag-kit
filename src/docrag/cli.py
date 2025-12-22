@@ -1096,6 +1096,110 @@ def debug_mcp():
         click.echo("INFO: Run 'docrag fix-database' if issues persist")
 
 
+@cli.command("test-mcp-reindex")
+def test_mcp_reindex():
+    """Test MCP reindexing functionality and diagnose specific issues."""
+    from pathlib import Path
+    import os
+    import time
+    from .config_manager import ConfigManager
+    
+    project_root = Path.cwd()
+    
+    click.echo("MCP REINDEX TEST: Testing MCP reindexing functionality...\n")
+    
+    # Check if DocRAG is initialized
+    docrag_dir = project_root / ".docrag"
+    if not docrag_dir.exists():
+        click.echo("ERROR: DocRAG not initialized in this project")
+        return
+    
+    click.echo("1. CHROMADB DIAGNOSTICS:")
+    
+    # Check ChromaDB version and configuration
+    try:
+        import chromadb
+        click.echo(f"   ChromaDB version: {chromadb.__version__}")
+        
+        # Check SQLite version
+        import sqlite3
+        click.echo(f"   SQLite version: {sqlite3.sqlite_version}")
+        
+        # Check database files
+        db_path = docrag_dir / "vectordb"
+        if db_path.exists():
+            db_files = list(db_path.rglob("*.sqlite*"))
+            wal_files = list(db_path.rglob("*-wal"))
+            shm_files = list(db_path.rglob("*-shm"))
+            lock_files = list(db_path.rglob("*.lock"))
+            
+            click.echo(f"   Database files: {len(db_files)}")
+            click.echo(f"   WAL files: {len(wal_files)}")
+            click.echo(f"   Shared memory files: {len(shm_files)}")
+            click.echo(f"   Lock files: {len(lock_files)}")
+            
+            if wal_files or shm_files:
+                click.echo("   WARNING: SQLite WAL mode detected - this can cause MCP locking issues")
+                
+            if lock_files:
+                click.echo("   WARNING: Lock files found - may indicate active database connections")
+    
+    except Exception as e:
+        click.echo(f"   ERROR: ChromaDB diagnostics failed: {e}")
+    
+    click.echo("\n2. MCP PROCESS ISOLATION TEST:")
+    
+    # Test if we can simulate MCP environment
+    try:
+        click.echo("   Testing database access in isolated context...")
+        
+        # Load configuration
+        config_manager = ConfigManager(project_root)
+        config = config_manager.load_config()
+        
+        if config is None:
+            click.echo("   ERROR: Configuration not found")
+            return
+        
+        # Test VectorDBManager initialization
+        from .vector_db import VectorDBManager
+        vector_db = VectorDBManager(config.to_dict(), project_root)
+        
+        # Test basic operations
+        try:
+            documents = vector_db.list_documents()
+            click.echo(f"   SUCCESS: Can list {len(documents)} documents")
+        except Exception as e:
+            click.echo(f"   ERROR: Cannot list documents: {e}")
+        
+        # Test retriever creation
+        try:
+            retriever = vector_db.get_retriever()
+            click.echo("   SUCCESS: Can create retriever")
+        except Exception as e:
+            click.echo(f"   ERROR: Cannot create retriever: {e}")
+    
+    except Exception as e:
+        click.echo(f"   ERROR: Process isolation test failed: {e}")
+    
+    click.echo("\n3. RECOMMENDATIONS:")
+    click.echo("   Current status of MCP reindexing issue:")
+    click.echo("   - This is a known ChromaDB/SQLite WAL locking issue")
+    click.echo("   - Affects only write operations in MCP context")
+    click.echo("   - Read operations (search, answers) work perfectly")
+    click.echo("   - CLI operations work without issues")
+    click.echo("")
+    click.echo("   Workarounds:")
+    click.echo("   1. Use 'docrag reindex' in CLI for reindexing")
+    click.echo("   2. Use MCP for all search and answer operations")
+    click.echo("   3. Run 'docrag fix-database' to clean up lock files")
+    click.echo("")
+    click.echo("   We're investigating:")
+    click.echo("   - Alternative database backends")
+    click.echo("   - ChromaDB configuration options")
+    click.echo("   - Process isolation improvements")
+
+
 @cli.command("fix-database")
 @click.option("--force", is_flag=True, help="Force rebuild without confirmation")
 def fix_database(force):

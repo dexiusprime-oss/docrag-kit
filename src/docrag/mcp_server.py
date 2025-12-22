@@ -557,7 +557,7 @@ class MCPServer:
 
     async def _perform_full_reindex(self, reason: str) -> str:
         """
-        Perform full reindexing operation with MCP-safe database handling.
+        Perform full reindexing operation with aggressive MCP-safe database handling.
         
         Args:
             reason: Reason for reindexing (for user feedback).
@@ -568,30 +568,125 @@ class MCPServer:
         try:
             from .document_processor import DocumentProcessor
             import time
+            import os
+            import shutil
             
-            # Close any existing database connections first
-            self.vector_db._close_existing_connections()
-            
-            # Wait a moment for connections to close
-            time.sleep(0.5)
-            
-            # Delete old database if it exists (with safe deletion)
+            # Step 1: Aggressive cleanup of existing database
             db_path = self.project_root / ".docrag" / "vectordb"
             if db_path.exists():
-                self.vector_db.delete_database()
+                # Force close any existing database connections
+                self.vector_db._close_existing_connections()
+                self._qa_chain = None  # Clear cached chain immediately
+                
+                # Wait for connections to close
+                time.sleep(1.0)
+                
+                # Try multiple cleanup strategies
+                success = False
+                for attempt in range(5):  # More aggressive retry count
+                    try:
+                        # Strategy 1: Normal deletion
+                        if attempt == 0:
+                            self.vector_db.delete_database()
+                            success = True
+                            break
+                        
+                        # Strategy 2: Force remove with longer wait
+                        elif attempt == 1:
+                            time.sleep(2.0)
+                            if db_path.exists():
+                                shutil.rmtree(db_path, ignore_errors=True)
+                            if not db_path.exists():
+                                success = True
+                                break
+                        
+                        # Strategy 3: Remove individual files
+                        elif attempt == 2:
+                            if db_path.exists():
+                                for file_path in db_path.rglob("*"):
+                                    if file_path.is_file():
+                                        try:
+                                            file_path.unlink()
+                                        except:
+                                            pass
+                                # Remove empty directories
+                                try:
+                                    shutil.rmtree(db_path, ignore_errors=True)
+                                except:
+                                    pass
+                            if not db_path.exists():
+                                success = True
+                                break
+                        
+                        # Strategy 4: Create new database in temporary location first
+                        elif attempt == 3:
+                            temp_db_path = db_path.parent / f"vectordb_temp_{int(time.time())}"
+                            break  # Will use temp strategy below
+                        
+                        # Strategy 5: Last resort - rename old database
+                        else:
+                            if db_path.exists():
+                                backup_path = db_path.parent / f"vectordb_backup_{int(time.time())}"
+                                try:
+                                    db_path.rename(backup_path)
+                                    success = True
+                                    break
+                                except:
+                                    pass
+                    
+                    except Exception as e:
+                        if attempt < 4:
+                            time.sleep(1.0 * (attempt + 1))
+                        continue
+                
+                if not success and attempt == 3:
+                    # Use temporary database strategy
+                    temp_db_path = db_path.parent / f"vectordb_temp_{int(time.time())}"
+                    use_temp_strategy = True
+                else:
+                    use_temp_strategy = False
+            else:
+                use_temp_strategy = False
             
-            # Process documents
+            # Step 2: Process documents
             doc_processor = DocumentProcessor(self.config)
             chunks, stats = doc_processor.process(self.project_root)
             
             if stats['files_found'] == 0:
                 return "REINDEX: No files found to index.\n   Check your configuration directories and extensions."
             
-            # Create new database with MCP-safe method
-            self.vector_db.create_database(chunks, show_progress=False)
+            # Step 3: Create new database with MCP-safe method
+            if use_temp_strategy:
+                # Create in temporary location first
+                original_db_path = self.vector_db.db_path
+                self.vector_db.db_path = temp_db_path
+                
+                try:
+                    self.vector_db.create_database(chunks, show_progress=False)
+                    
+                    # Move temporary database to final location
+                    if db_path.exists():
+                        shutil.rmtree(db_path, ignore_errors=True)
+                    
+                    temp_db_path.rename(db_path)
+                    self.vector_db.db_path = original_db_path
+                    
+                except Exception as e:
+                    # Cleanup temporary database
+                    self.vector_db.db_path = original_db_path
+                    if temp_db_path.exists():
+                        shutil.rmtree(temp_db_path, ignore_errors=True)
+                    raise e
+            else:
+                # Direct creation
+                self.vector_db.create_database(chunks, show_progress=False)
             
-            # Reset cached QA chain to use new database
+            # Step 4: Reset cached QA chain
             self._qa_chain = None
+            
+            # Step 5: Verify database was created successfully
+            if not db_path.exists():
+                raise Exception("Database creation verification failed - database directory not found")
             
             # Return success message
             return (f"REINDEX: Reindexing completed successfully!\n"
@@ -605,8 +700,10 @@ class MCPServer:
             
             # Provide helpful error message for common database issues
             if "unable to open database file" in error_msg or "database is locked" in error_msg:
-                return (f"REINDEX: Database access error - this can happen when CLI and MCP access the database simultaneously.\n"
-                       f"   Try running 'docrag reindex' in terminal instead, or wait a moment and retry.\n"
+                return (f"REINDEX: Database access error persists despite v0.1.8 improvements.\n"
+                       f"   This appears to be a deeper ChromaDB/SQLite locking issue in MCP context.\n"
+                       f"   WORKAROUND: Use 'docrag reindex' in terminal for now.\n"
+                       f"   We're investigating this specific MCP process isolation issue.\n"
                        f"   Technical details: {error_msg}")
             
             raise ValueError(f"Reindexing operation failed: {error_msg}")
