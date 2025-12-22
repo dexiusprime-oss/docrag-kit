@@ -1,0 +1,9 @@
+# Vector database (can be regenerated)
+vectordb/
+
+# Python cache
+*.pyc
+__pycache__/
+
+# Environment variables (contains API keys)
+.env

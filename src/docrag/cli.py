@@ -1096,6 +1096,127 @@ def debug_mcp():
         click.echo("INFO: Run 'docrag fix-database' if issues persist")
 
 
+@cli.command("test-isolated-reindex")
+def test_isolated_reindex():
+    """Test the new isolated reindexing architecture."""
+    from pathlib import Path
+    import subprocess
+    import json
+    import sys
+    from .config_manager import ConfigManager
+    
+    project_root = Path.cwd()
+    
+    click.echo("ISOLATED REINDEX TEST: Testing new architecture...\n")
+    
+    # Check if DocRAG is initialized
+    docrag_dir = project_root / ".docrag"
+    if not docrag_dir.exists():
+        click.echo("ERROR: DocRAG not initialized in this project")
+        return
+    
+    # Load configuration
+    config_manager = ConfigManager(project_root)
+    config = config_manager.load_config()
+    
+    if config is None:
+        click.echo("ERROR: Configuration not found")
+        return
+    
+    click.echo("1. TESTING SUBPROCESS REINDEXING:")
+    
+    try:
+        # Test the isolated worker
+        config_json = json.dumps(config.to_dict())
+        project_root_str = str(project_root)
+        
+        cmd = [
+            sys.executable, "-m", "docrag.mcp_reindex_worker",
+            project_root_str, config_json, "Test isolated reindex"
+        ]
+        
+        click.echo(f"   Command: {' '.join(cmd[:3])} [config] [reason]")
+        click.echo("   Executing isolated reindexing worker...")
+        
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=120,  # 2 minute timeout for test
+            cwd=project_root
+        )
+        
+        if result.returncode == 0:
+            try:
+                output_data = json.loads(result.stdout)
+                if output_data.get("success"):
+                    stats = output_data.get("stats", {})
+                    click.echo("   SUCCESS: Isolated reindexing works!")
+                    click.echo(f"   Files processed: {stats.get('files_processed', 0)}")
+                    click.echo(f"   Chunks created: {stats.get('chunks_created', 0)}")
+                    click.echo(f"   Characters: {stats.get('total_characters', 0):,}")
+                else:
+                    click.echo(f"   FAILED: {output_data.get('error', 'Unknown error')}")
+            except json.JSONDecodeError:
+                click.echo(f"   ERROR: Invalid JSON output: {result.stdout}")
+        else:
+            click.echo(f"   FAILED: Process exited with code {result.returncode}")
+            if result.stderr:
+                click.echo(f"   Error: {result.stderr}")
+    
+    except subprocess.TimeoutExpired:
+        click.echo("   TIMEOUT: Process took too long (>2 minutes)")
+    except Exception as e:
+        click.echo(f"   ERROR: {e}")
+    
+    click.echo("\n2. TESTING MCP SERVER INTEGRATION:")
+    
+    try:
+        # Test MCP server with new architecture
+        from .mcp_server import MCPServer
+        
+        # Create server instance
+        server = MCPServer()
+        
+        # Test the new reindexing method
+        click.echo("   Testing subprocess strategy...")
+        
+        # We can't use await in CLI context, so we'll test differently
+        try:
+            import asyncio
+            result = asyncio.run(server._try_subprocess_reindex("MCP test"))
+            
+            if result:
+                click.echo("   SUCCESS: MCP subprocess reindexing works!")
+                click.echo(f"   Result: {result[:100]}...")
+            else:
+                click.echo("   INFO: Subprocess strategy not available, testing in-process...")
+                
+                result = asyncio.run(server._try_inprocess_reindex("MCP test"))
+                if result:
+                    click.echo("   SUCCESS: MCP in-process reindexing works!")
+                    click.echo(f"   Result: {result[:100]}...")
+                else:
+                    click.echo("   FAILED: Both strategies failed")
+        except Exception as e:
+            click.echo(f"   ERROR: Async test failed: {e}")
+    
+    except Exception as e:
+        click.echo(f"   ERROR: MCP server test failed: {e}")
+    
+    click.echo("\n3. ARCHITECTURE SUMMARY:")
+    click.echo("   New reindexing architecture provides:")
+    click.echo("   - Isolated subprocess reindexing (most reliable)")
+    click.echo("   - Enhanced in-process reindexing with aggressive cleanup")
+    click.echo("   - Fallback strategies for maximum compatibility")
+    click.echo("   - Better error handling and user feedback")
+    
+    click.echo("\nNEXT STEPS:")
+    click.echo("   1. If tests pass: MCP reindexing should now work!")
+    click.echo("   2. If tests fail: Check logs and try 'docrag fix-database'")
+    click.echo("   3. Report results to help improve the architecture")
+
+
 @cli.command("test-mcp-reindex")
 def test_mcp_reindex():
     """Test MCP reindexing functionality and diagnose specific issues."""

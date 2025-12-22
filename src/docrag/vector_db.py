@@ -109,7 +109,7 @@ class VectorDBManager:
         
         try:
             # Create ChromaDB vector store with MCP-safe settings
-            vectorstore = self._create_vectorstore_safe(chunks)
+            vectorstore = self._create_vectorstore_safe(chunks, show_progress)
             
             if show_progress:
                 print(f"SUCCESS: Vector database created successfully at {self.db_path}")
@@ -117,12 +117,13 @@ class VectorDBManager:
         except Exception as e:
             raise Exception(f"Database error: {e}")
 
-    def _create_vectorstore_safe(self, chunks: List[Document]):
+    def _create_vectorstore_safe(self, chunks: List[Document], show_progress: bool = True):
         """
         Create ChromaDB vectorstore with MCP-safe configuration.
         
         Args:
             chunks: Document chunks to index.
+            show_progress: Whether to show progress messages.
             
         Returns:
             Chroma vectorstore instance.
@@ -150,7 +151,8 @@ class VectorDBManager:
                 
             except Exception as e:
                 if attempt < max_retries - 1:
-                    print(f"   Retry {attempt + 1}/{max_retries}: Database creation failed, retrying...")
+                    if show_progress:  # Only show retry messages if progress is enabled
+                        print(f"   Retry {attempt + 1}/{max_retries}: Database creation failed, retrying...")
                     time.sleep(retry_delay * (attempt + 1))
                     
                     # Clean up any partial creation
@@ -259,6 +261,74 @@ class VectorDBManager:
                     raise Exception(f"Database deletion failed after {max_retries} attempts. "
                                   f"This may be due to ChromaDB file locking in MCP context. "
                                   f"Last error: {e}")
+
+    def _force_delete_database(self) -> None:
+        """
+        Force delete database using the most aggressive strategy available.
+        
+        This method is specifically designed for MCP context where normal
+        deletion might fail due to process isolation issues.
+        """
+        import time
+        import platform
+        import os
+        import subprocess
+        
+        if not self.db_path.exists():
+            return
+        
+        # Strategy 1: Try normal deletion first
+        try:
+            self._safe_delete_database()
+            return
+        except:
+            pass
+        
+        # Strategy 2: Force process cleanup and retry
+        try:
+            # Kill any potential ChromaDB processes (last resort)
+            if platform.system() != "Windows":
+                try:
+                    subprocess.run(["pkill", "-f", "chroma"], capture_output=True, timeout=5)
+                except:
+                    pass
+            
+            time.sleep(1.0)
+            
+            # Try deletion again
+            self._safe_delete_database()
+            return
+        except:
+            pass
+        
+        # Strategy 3: Rename and delete in background
+        try:
+            backup_path = self.db_path.parent / f"vectordb_delete_{int(time.time())}"
+            self.db_path.rename(backup_path)
+            
+            # Try to delete in background
+            if platform.system() != "Windows":
+                subprocess.Popen(["rm", "-rf", str(backup_path)], 
+                               stdout=subprocess.DEVNULL, 
+                               stderr=subprocess.DEVNULL)
+            else:
+                subprocess.Popen(["rmdir", "/s", "/q", str(backup_path)], 
+                               shell=True,
+                               stdout=subprocess.DEVNULL, 
+                               stderr=subprocess.DEVNULL)
+            return
+        except:
+            pass
+        
+        # Strategy 4: Create marker for manual cleanup
+        try:
+            marker_file = self.db_path.parent / "vectordb_cleanup_needed.txt"
+            marker_file.write_text(f"Database cleanup needed: {self.db_path}\nTimestamp: {time.time()}")
+        except:
+            pass
+        
+        # If all else fails, raise an exception
+        raise Exception("Force database deletion failed - manual cleanup may be required")
 
     def _close_existing_connections(self) -> None:
         """

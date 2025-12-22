@@ -557,13 +557,101 @@ class MCPServer:
 
     async def _perform_full_reindex(self, reason: str) -> str:
         """
-        Perform full reindexing operation with aggressive MCP-safe database handling.
+        Perform full reindexing operation using isolated process strategy.
         
         Args:
             reason: Reason for reindexing (for user feedback).
         
         Returns:
             Status message about completed reindexing.
+        """
+        try:
+            # Strategy 1: Try isolated subprocess reindexing (most reliable)
+            result = await self._try_subprocess_reindex(reason)
+            if result:
+                return result
+            
+            # Strategy 2: Try in-process reindexing with aggressive cleanup
+            result = await self._try_inprocess_reindex(reason)
+            if result:
+                return result
+            
+            # Strategy 3: Fallback to CLI recommendation
+            return (f"REINDEX: MCP reindexing failed despite multiple strategies.\n"
+                   f"   WORKAROUND: Please use 'docrag reindex' in terminal.\n"
+                   f"   This is a known ChromaDB/SQLite limitation in MCP context.\n"
+                   f"   We continue investigating architectural solutions.")
+        
+        except Exception as e:
+            error_msg = str(e)
+            return (f"REINDEX: Reindexing failed: {error_msg}\n"
+                   f"   WORKAROUND: Use 'docrag reindex' in terminal instead.\n"
+                   f"   This provides the same functionality outside MCP context.")
+
+    async def _try_subprocess_reindex(self, reason: str) -> Optional[str]:
+        """
+        Try reindexing using isolated subprocess.
+        
+        Returns:
+            Success message if successful, None if failed.
+        """
+        try:
+            import subprocess
+            import json
+            import sys
+            
+            # Prepare arguments for subprocess
+            config_json = json.dumps(self.config)
+            project_root_str = str(self.project_root)
+            
+            # Find Python executable
+            python_exe = sys.executable
+            
+            # Run isolated reindexing worker
+            cmd = [
+                python_exe, "-m", "docrag.mcp_reindex_worker",
+                project_root_str, config_json, reason
+            ]
+            
+            # Execute with timeout
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=300,  # 5 minute timeout
+                cwd=self.project_root
+            )
+            
+            if result.returncode == 0:
+                # Parse successful result
+                try:
+                    output_data = json.loads(result.stdout)
+                    if output_data.get("success"):
+                        stats = output_data.get("stats", {})
+                        
+                        # Reset cached QA chain
+                        self._qa_chain = None
+                        
+                        return (f"REINDEX: Subprocess reindexing completed successfully!\n"
+                               f"   Reason: {reason}\n"
+                               f"   Files processed: {stats.get('files_processed', 0)}\n"
+                               f"   Chunks created: {stats.get('chunks_created', 0)}\n"
+                               f"   Total characters: {stats.get('total_characters', 0):,}")
+                except:
+                    pass
+            
+            # If we get here, subprocess failed
+            return None
+            
+        except Exception:
+            return None
+
+    async def _try_inprocess_reindex(self, reason: str) -> Optional[str]:
+        """
+        Try reindexing in current process with aggressive cleanup.
+        
+        Returns:
+            Success message if successful, None if failed.
         """
         try:
             from .document_processor import DocumentProcessor
@@ -579,74 +667,29 @@ class MCPServer:
                 self._qa_chain = None  # Clear cached chain immediately
                 
                 # Wait for connections to close
-                time.sleep(1.0)
+                time.sleep(2.0)
                 
-                # Try multiple cleanup strategies
-                success = False
-                for attempt in range(5):  # More aggressive retry count
+                # Try force deletion
+                try:
+                    self.vector_db._force_delete_database()
+                except Exception:
+                    # If force deletion fails, try renaming strategy
                     try:
-                        # Strategy 1: Normal deletion
-                        if attempt == 0:
-                            self.vector_db.delete_database()
-                            success = True
-                            break
+                        temp_path = db_path.parent / f"vectordb_old_{int(time.time())}"
+                        db_path.rename(temp_path)
                         
-                        # Strategy 2: Force remove with longer wait
-                        elif attempt == 1:
-                            time.sleep(2.0)
-                            if db_path.exists():
-                                shutil.rmtree(db_path, ignore_errors=True)
-                            if not db_path.exists():
-                                success = True
-                                break
+                        # Try to delete in background
+                        import threading
+                        def cleanup_old_db():
+                            time.sleep(5)
+                            try:
+                                shutil.rmtree(temp_path, ignore_errors=True)
+                            except:
+                                pass
                         
-                        # Strategy 3: Remove individual files
-                        elif attempt == 2:
-                            if db_path.exists():
-                                for file_path in db_path.rglob("*"):
-                                    if file_path.is_file():
-                                        try:
-                                            file_path.unlink()
-                                        except:
-                                            pass
-                                # Remove empty directories
-                                try:
-                                    shutil.rmtree(db_path, ignore_errors=True)
-                                except:
-                                    pass
-                            if not db_path.exists():
-                                success = True
-                                break
-                        
-                        # Strategy 4: Create new database in temporary location first
-                        elif attempt == 3:
-                            temp_db_path = db_path.parent / f"vectordb_temp_{int(time.time())}"
-                            break  # Will use temp strategy below
-                        
-                        # Strategy 5: Last resort - rename old database
-                        else:
-                            if db_path.exists():
-                                backup_path = db_path.parent / f"vectordb_backup_{int(time.time())}"
-                                try:
-                                    db_path.rename(backup_path)
-                                    success = True
-                                    break
-                                except:
-                                    pass
-                    
-                    except Exception as e:
-                        if attempt < 4:
-                            time.sleep(1.0 * (attempt + 1))
-                        continue
-                
-                if not success and attempt == 3:
-                    # Use temporary database strategy
-                    temp_db_path = db_path.parent / f"vectordb_temp_{int(time.time())}"
-                    use_temp_strategy = True
-                else:
-                    use_temp_strategy = False
-            else:
-                use_temp_strategy = False
+                        threading.Thread(target=cleanup_old_db, daemon=True).start()
+                    except Exception:
+                        return None
             
             # Step 2: Process documents
             doc_processor = DocumentProcessor(self.config)
@@ -655,58 +698,28 @@ class MCPServer:
             if stats['files_found'] == 0:
                 return "REINDEX: No files found to index.\n   Check your configuration directories and extensions."
             
-            # Step 3: Create new database with MCP-safe method
-            if use_temp_strategy:
-                # Create in temporary location first
-                original_db_path = self.vector_db.db_path
-                self.vector_db.db_path = temp_db_path
-                
-                try:
-                    self.vector_db.create_database(chunks, show_progress=False)
-                    
-                    # Move temporary database to final location
-                    if db_path.exists():
-                        shutil.rmtree(db_path, ignore_errors=True)
-                    
-                    temp_db_path.rename(db_path)
-                    self.vector_db.db_path = original_db_path
-                    
-                except Exception as e:
-                    # Cleanup temporary database
-                    self.vector_db.db_path = original_db_path
-                    if temp_db_path.exists():
-                        shutil.rmtree(temp_db_path, ignore_errors=True)
-                    raise e
-            else:
-                # Direct creation
+            # Step 3: Create new database with extra safety
+            try:
                 self.vector_db.create_database(chunks, show_progress=False)
+            except Exception:
+                return None
             
             # Step 4: Reset cached QA chain
             self._qa_chain = None
             
             # Step 5: Verify database was created successfully
             if not db_path.exists():
-                raise Exception("Database creation verification failed - database directory not found")
+                return None
             
             # Return success message
-            return (f"REINDEX: Reindexing completed successfully!\n"
+            return (f"REINDEX: In-process reindexing completed successfully!\n"
                    f"   Reason: {reason}\n"
                    f"   Files processed: {stats['files_processed']}\n"
                    f"   Chunks created: {stats['chunks_created']}\n"
                    f"   Total characters: {stats['total_characters']:,}")
         
-        except Exception as e:
-            error_msg = str(e)
-            
-            # Provide helpful error message for common database issues
-            if "unable to open database file" in error_msg or "database is locked" in error_msg:
-                return (f"REINDEX: Database access error persists despite v0.1.8 improvements.\n"
-                       f"   This appears to be a deeper ChromaDB/SQLite locking issue in MCP context.\n"
-                       f"   WORKAROUND: Use 'docrag reindex' in terminal for now.\n"
-                       f"   We're investigating this specific MCP process isolation issue.\n"
-                       f"   Technical details: {error_msg}")
-            
-            raise ValueError(f"Reindexing operation failed: {error_msg}")
+        except Exception:
+            return None
 
     async def _check_database_staleness(self) -> str:
         """

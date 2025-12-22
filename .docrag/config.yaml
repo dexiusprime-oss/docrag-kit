@@ -1,0 +1,41 @@
+project:
+  name: My Project
+  type: general
+llm:
+  provider: openai
+  embedding_model: text-embedding-3-small
+  llm_model: gpt-4o-mini
+  temperature: 0.3
+indexing:
+  directories:
+  - docs/
+  - README.md
+  extensions:
+  - .md
+  - .txt
+  - .rst
+  exclude_patterns:
+  - node_modules/
+  - .git/
+  - __pycache__/
+  - venv/
+  - .venv/
+  - vendor/
+  - build/
+  - dist/
+chunking:
+  chunk_size: 800
+  chunk_overlap: 150
+retrieval:
+  top_k: 3
+prompt:
+  template: 'You are a developer assistant. Answer based on this context:
+
+
+    {context}
+
+
+    Question: {question}
+
+
+    Answer:'

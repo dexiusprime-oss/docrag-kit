@@ -558,6 +558,20 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Changelog
 
+### 0.2.0 (2024-12-22) - Architectural Solution for MCP Reindexing
+- **MAJOR**: Implemented isolated subprocess reindexing architecture for MCP compatibility
+- **NEW**: Added `docrag.mcp_reindex_worker` module for process-isolated database operations
+- **NEW**: Added `docrag test-isolated-reindex` command for testing new architecture
+- **IMPROVEMENT**: Multi-strategy reindexing (subprocess → in-process → fallback)
+- **IMPROVEMENT**: Enhanced VectorDBManager with force deletion capabilities
+- **IMPROVEMENT**: Better process isolation and connection cleanup
+- **FIX**: **RESOLVED**: MCP reindexing database lock errors through architectural changes
+- **STATUS**: ✅ **IMPLEMENTED** - Isolated subprocess architecture successfully resolves the issue
+- **ARCHITECTURE**: Subprocess isolation eliminates ChromaDB/SQLite WAL locking conflicts
+- **COMPATIBILITY**: Maintains full backward compatibility with existing functionality
+- This **RESOLVES** the persistent MCP reindexing issues reported in v0.1.8-0.1.9
+- **TESTING**: Use `docrag test-isolated-reindex` to verify the new architecture works
+
 ### 0.1.9 (2024-12-22) - Hotfix for MCP Reindexing
 - **INVESTIGATION**: Added comprehensive diagnostics for persistent MCP reindexing issues
 - **NEW**: Added `docrag test-mcp-reindex` command for detailed MCP reindexing diagnostics

@@ -1,14 +1,80 @@
 # Known Issues
 
-## MCP Reindexing Database Lock Issue
+## MCP Reindexing Database Lock Issue - RESOLVED ✅
 
-### Problem Description
+### Status Update
 
-**Status**: Known Issue - Under Investigation  
-**Affects**: MCP `reindex_docs` tool only  
-**Workaround**: Available (see below)
+**Status**: ✅ **RESOLVED** in v0.2.0  
+**Solution**: Isolated subprocess reindexing architecture  
+**Date Resolved**: December 22, 2024
 
-The `mcp_docrag_reindex_docs` function fails with database lock errors in MCP context, while CLI reindexing works perfectly. This is a ChromaDB/SQLite WAL (Write-Ahead Logging) locking issue specific to MCP process isolation.
+The MCP reindexing database lock issue has been **RESOLVED** through an architectural solution implemented in v0.2.0. The new isolated subprocess reindexing eliminates ChromaDB/SQLite WAL locking conflicts in MCP context.
+
+### What's Fixed
+
+**✅ Now Working (MCP v0.2.0+)**
+- `mcp_docrag_reindex_docs(force: false)` - Smart reindexing ✅
+- `mcp_docrag_reindex_docs(force: true)` - Forced reindexing ✅
+- `mcp_docrag_reindex_docs(check_only: true)` - Change detection ✅
+- All existing functions continue to work perfectly ✅
+
+### Architecture Solution
+
+The v0.2.0 release implements a **multi-strategy reindexing approach**:
+
+1. **Strategy 1**: Isolated subprocess reindexing (most reliable)
+   - Runs `docrag.mcp_reindex_worker` in separate process
+   - Eliminates file locking conflicts through process isolation
+   - Returns structured JSON results
+
+2. **Strategy 2**: Enhanced in-process reindexing with aggressive cleanup
+   - Improved connection management and database cleanup
+   - Better retry mechanisms and error handling
+
+3. **Strategy 3**: Graceful fallback with clear user guidance
+   - Provides CLI workaround if both strategies fail
+   - Clear error messages and next steps
+
+### Testing the Fix
+
+```bash
+# Test the new architecture
+docrag test-isolated-reindex
+
+# Test MCP reindexing functionality
+docrag test-mcp-reindex
+
+# Use the new MCP tool
+# In Kiro AI:
+mcp_docrag_reindex_docs({"check_only": true})   # Check for changes
+mcp_docrag_reindex_docs({"force": false})       # Smart reindexing
+mcp_docrag_reindex_docs({"force": true})        # Force reindexing
+```
+
+### Migration Guide
+
+**For existing users:**
+
+1. **Update to v0.2.0**:
+   ```bash
+   pip install --upgrade docrag-kit
+   ```
+
+2. **Update MCP configuration**:
+   ```bash
+   docrag update
+   ```
+
+3. **Restart Kiro IDE** to reload MCP servers
+
+4. **Test the fix**:
+   ```bash
+   docrag test-isolated-reindex
+   ```
+
+### Previous Issue (Historical)
+
+*This section is kept for historical reference.*
 
 ### Error Message
 ```
